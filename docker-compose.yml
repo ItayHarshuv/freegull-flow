@@ -1,0 +1,52 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: freegull-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: freegull_flow
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d freegull_flow"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: freegull-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 4000
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/freegull_flow
+      CLUB_ID: FREEGULL_MAIN
+    ports:
+      - "4000:4000"
+    command: sh -c "npm run migrate && npm run start"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: freegull-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      VITE_API_BASE_URL: http://localhost:4000
+    ports:
+      - "3000:3000"
+    command: sh -c "npm run dev -- --host 0.0.0.0 --port 3000"
+
+volumes:
+  postgres_data:

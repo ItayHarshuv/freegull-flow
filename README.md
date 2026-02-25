@@ -1,0 +1,57 @@
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+</div>
+
+# Run and deploy your AI Studio app
+
+This contains everything you need to run your app locally.
+
+View your app in AI Studio: https://ai.studio/apps/drive/1xA6Y69-SEdwfjjeXD0neqtvD4UE6vnTp
+
+## Run Locally
+
+**Prerequisites:**  Node.js
+
+
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Start the frontend:
+   `npm run dev`
+
+## PostgreSQL Migration Runtime
+
+This repo now includes a backend service in `backend/` for PostgreSQL persistence.
+
+1. In a separate terminal:
+   - `cd backend`
+   - `npm install`
+   - `cp .env.example .env`
+   - set `DATABASE_URL` in `.env`
+2. Run DB migrations:
+   - `npm run migrate`
+3. Optional one-time import from existing jsonblob:
+   - `npm run import:blob`
+4. Start backend:
+   - `npm run dev`
+
+Frontend reads/writes through `VITE_API_BASE_URL` (defaults to `http://localhost:4000`).
+
+## Docker (Frontend + Backend + Postgres)
+
+Run all services locally with Docker Compose:
+
+1. From project root:
+   - `docker compose up --build`
+2. Open:
+   - Frontend: `http://localhost:3000`
+   - Backend health: `http://localhost:4000/health`
+   - Postgres: `localhost:5432` (`postgres` / `postgres`, db: `freegull_flow`)
+
+Stop services:
+
+- `docker compose down`
+
+If you also want to remove database volume data:
+
+- `docker compose down -v`

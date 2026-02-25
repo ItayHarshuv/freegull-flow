@@ -1,0 +1,7 @@
+node_modules
+dist
+.git
+.cursor
+backend/node_modules
+backend/.env
+**/*.log
