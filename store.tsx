@@ -5,6 +5,43 @@ import { AppState, User, Shift, Lesson, Rental, Task, Availability, ConfirmedShi
 const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:4000';
 const SYNC_INTERVAL_MS = 5000;
 
+const fetchWithResponseLogging = async (input: RequestInfo | URL, init?: RequestInit) => {
+  const method = init?.method || 'GET';
+  const requestUrl = typeof input === 'string' ? input : input.toString();
+
+  try {
+    const response = await fetch(input, init);
+    const contentType = response.headers.get('content-type') || '';
+    const responseClone = response.clone();
+    let responseBody: unknown = null;
+
+    try {
+      if (contentType.includes('application/json')) {
+        responseBody = await responseClone.json();
+      } else {
+        responseBody = await responseClone.text();
+      }
+    } catch (parseError) {
+      responseBody = '[Unable to parse response body]';
+      console.error('[HTTP_RESPONSE_PARSE_FAILED]', { method, url: requestUrl, parseError });
+    }
+
+    console.log('[HTTP_RESPONSE]', {
+      method,
+      url: requestUrl,
+      ok: response.ok,
+      status: response.status,
+      statusText: response.statusText,
+      body: responseBody
+    });
+
+    return response;
+  } catch (error) {
+    console.error('[HTTP_REQUEST_FAILED]', { method, url: requestUrl, error });
+    throw error;
+  }
+};
+
 const INITIAL_USERS: User[] = [
   { id: 'u2', name: 'אור פרידמן', email: 'or@wind.co.il', phone: '0524383707', role: 'Manager', avatar: '', certifications: ['גלישת גלים', 'סאפ'], isArchived: false, isFullTime: true, fixedDayOff: null, canAddBonuses: true, quickCode: '1001' },
   { id: 'u3', name: 'דן פרידמן', email: 'dan@wind.co.il', phone: '0526920922', role: 'Manager', avatar: '', certifications: ['גלישת רוח'], isArchived: false, isFullTime: true, fixedDayOff: null, canAddBonuses: true, quickCode: '1002' },
@@ -110,7 +147,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const pull = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/state/${clubIdRef.current}`);
+      const res = await fetchWithResponseLogging(`${API_BASE_URL}/state/${clubIdRef.current}`);
       if (res.ok) {
         const cloudData = await res.json();
         const nextClubId = cloudData.clubId || clubIdRef.current;
@@ -141,7 +178,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     clubIdRef.current = pureData.clubId || clubIdRef.current;
     
     try {
-      await fetch(`${API_BASE_URL}/state/${clubIdRef.current}`, {
+      await fetchWithResponseLogging(`${API_BASE_URL}/state/${clubIdRef.current}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ state: pureData })
