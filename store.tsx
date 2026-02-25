@@ -5,41 +5,95 @@ import { AppState, User, Shift, Lesson, Rental, Task, Availability, ConfirmedShi
 const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:4000';
 const SYNC_INTERVAL_MS = 5000;
 
-const fetchWithResponseLogging = async (input: RequestInfo | URL, init?: RequestInit) => {
-  const method = init?.method || 'GET';
-  const requestUrl = typeof input === 'string' ? input : input.toString();
+let fetchLoggerInstalled = false;
 
-  try {
-    const response = await fetch(input, init);
-    const contentType = response.headers.get('content-type') || '';
-    const responseClone = response.clone();
-    let responseBody: unknown = null;
+const formatBytes = (bytes: number | null) => {
+  if (bytes === null) return 'unknown';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+};
+
+const estimateRequestBodyBytes = (body: RequestInit['body']): number | null => {
+  if (!body) return 0;
+  if (typeof body === 'string') return new TextEncoder().encode(body).length;
+  if (body instanceof URLSearchParams) return new TextEncoder().encode(body.toString()).length;
+  if (typeof Blob !== 'undefined' && body instanceof Blob) return body.size;
+  if (body instanceof ArrayBuffer) return body.byteLength;
+  if (ArrayBuffer.isView(body)) return body.byteLength;
+  return null;
+};
+
+const detectRequestKind = (url: string, method: string) => {
+  const normalizedMethod = method.toUpperCase();
+  const isVersionCheck = /\/state\/[^/]+\/version(?:\?|$)/.test(url);
+  const isStateSync = /\/state\/[^/?]+(?:\?|$)/.test(url);
+
+  if (normalizedMethod === 'GET' && isVersionCheck) return 'sync-version-check';
+  if (normalizedMethod === 'GET' && isStateSync) return 'sync-full-pull';
+  if (normalizedMethod === 'PUT' && isStateSync) return 'sync-full-push';
+  return 'api-other';
+};
+
+const installFrontendFetchLogger = () => {
+  if (fetchLoggerInstalled || typeof globalThis.fetch !== 'function') return;
+
+  const originalFetch = globalThis.fetch.bind(globalThis);
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const requestUrl =
+      typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : input.url;
+    const method = init?.method || (input instanceof Request ? input.method : 'GET');
+    const requestKind = detectRequestKind(requestUrl, method);
+    const requestBodyBytes = estimateRequestBodyBytes(init?.body);
 
     try {
-      if (contentType.includes('application/json')) {
-        responseBody = await responseClone.json();
-      } else {
-        responseBody = await responseClone.text();
+      const response = await originalFetch(input, init);
+      const contentType = response.headers.get('content-type') || '';
+      const responseClone = response.clone();
+      const responseBytes = await responseClone.arrayBuffer();
+      const responseBodyBytes = responseBytes.byteLength;
+      let responseBody: unknown = null;
+
+      try {
+        if (contentType.includes('application/json')) {
+          const text = new TextDecoder().decode(responseBytes);
+          responseBody = JSON.parse(text);
+        } else if (contentType.startsWith('text/')) {
+          responseBody = new TextDecoder().decode(responseBytes);
+        } else {
+          responseBody = `[Body omitted for content-type: ${contentType || 'unknown'}]`;
+        }
+      } catch (parseError) {
+        responseBody = '[Unable to parse response body]';
+        console.error('[FRONTEND_HTTP_RESPONSE_PARSE_FAILED]', { method, url: requestUrl, parseError });
       }
-    } catch (parseError) {
-      responseBody = '[Unable to parse response body]';
-      console.error('[HTTP_RESPONSE_PARSE_FAILED]', { method, url: requestUrl, parseError });
+
+      console.log('[FRONTEND_HTTP_RESPONSE]', {
+        method,
+        url: requestUrl,
+        kind: requestKind,
+        requestBodyBytes,
+        requestBodySize: formatBytes(requestBodyBytes),
+        ok: response.ok,
+        status: response.status,
+        statusText: response.statusText,
+        responseBodyBytes,
+        responseBodySize: formatBytes(responseBodyBytes),
+        body: responseBody
+      });
+
+      return response;
+    } catch (error) {
+      console.error('[FRONTEND_HTTP_REQUEST_FAILED]', { method, url: requestUrl, error });
+      throw error;
     }
+  }) as typeof globalThis.fetch;
 
-    console.log('[HTTP_RESPONSE]', {
-      method,
-      url: requestUrl,
-      ok: response.ok,
-      status: response.status,
-      statusText: response.statusText,
-      body: responseBody
-    });
-
-    return response;
-  } catch (error) {
-    console.error('[HTTP_REQUEST_FAILED]', { method, url: requestUrl, error });
-    throw error;
-  }
+  fetchLoggerInstalled = true;
 };
 
 const INITIAL_USERS: User[] = [
@@ -140,18 +194,70 @@ export const useAppStore = () => {
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, setState] = useState<AppState>(INITIAL_STATE);
+  const [isDataDirty, setIsDataDirty] = useState(false);
   const isFirstLoad = useRef(true);
   const isUpdatingCloud = useRef(false);
   const isApplyingRemoteState = useRef(false);
   const clubIdRef = useRef(INITIAL_STATE.clubId);
+  const serverVersionRef = useRef(0);
+  const isDataDirtyRef = useRef(false);
+  const localMutationVersionRef = useRef(0);
+  const requestIdRef = useRef(0);
+  const latestStateRef = useRef(INITIAL_STATE);
 
-  const pull = useCallback(async () => {
+  useEffect(() => {
+    installFrontendFetchLogger();
+  }, []);
+
+  useEffect(() => {
+    latestStateRef.current = state;
+  }, [state]);
+
+  const markDataDirty = useCallback(() => {
+    localMutationVersionRef.current += 1;
+    isDataDirtyRef.current = true;
+    setIsDataDirty(true);
+  }, []);
+
+  const clearDataDirty = useCallback(() => {
+    isDataDirtyRef.current = false;
+    setIsDataDirty(false);
+  }, []);
+
+  const fetchServerVersion = useCallback(async () => {
+    const res = await fetch(`${API_BASE_URL}/state/${clubIdRef.current}/version`);
+    if (!res.ok) {
+      throw new Error(`Version check failed with status ${res.status}`);
+    }
+    const payload = await res.json();
+    return Number(payload?.serverVersion ?? 0);
+  }, []);
+
+  const pull = useCallback(async ({ force = false, allowDuringPush = false }: { force?: boolean; allowDuringPush?: boolean } = {}) => {
+    if (!force && isUpdatingCloud.current && !allowDuringPush) return;
+    if (!force && isDataDirtyRef.current) return;
+    const requestId = ++requestIdRef.current;
     try {
-      const res = await fetchWithResponseLogging(`${API_BASE_URL}/state/${clubIdRef.current}`);
+      if (!force) {
+        const latestVersion = await fetchServerVersion();
+        if (latestVersion === serverVersionRef.current) {
+          setState(prev => ({
+            ...prev,
+            syncStatus: 'synced',
+            lastSyncTime: new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+          }));
+          return;
+        }
+      }
+
+      const res = await fetch(`${API_BASE_URL}/state/${clubIdRef.current}`);
       if (res.ok) {
-        const cloudData = await res.json();
+        const cloudPayload = await res.json();
+        const serverVersion = Number(cloudPayload?.serverVersion ?? 0);
+        const { serverVersion: _serverVersion, ...cloudData } = cloudPayload || {};
         const nextClubId = cloudData.clubId || clubIdRef.current;
         clubIdRef.current = nextClubId;
+        serverVersionRef.current = serverVersion;
         isApplyingRemoteState.current = true;
         setState(prev => ({
           ...prev,
@@ -168,21 +274,48 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       console.error('Pull failed', e);
       setState(prev => ({ ...prev, syncStatus: 'error' }));
     }
-  }, []);
+  }, [fetchServerVersion]);
 
-  const push = useCallback(async (dataToPush: AppState) => {
+  const push = useCallback(async (dataToPush: AppState, mutationVersionAtSchedule: number, allowRetry = true) => {
     if (isUpdatingCloud.current) return;
     isUpdatingCloud.current = true;
     
     const { currentUser, isEditorMode, syncStatus, lastSyncTime, isTourActive, ...pureData } = dataToPush;
     clubIdRef.current = pureData.clubId || clubIdRef.current;
+    const expectedVersion = serverVersionRef.current;
+    const requestId = ++requestIdRef.current;
+    let shouldRetry = false;
     
     try {
-      await fetchWithResponseLogging(`${API_BASE_URL}/state/${clubIdRef.current}`, {
+      console.log('[SYNC_PUSH_START]', { requestId, expectedVersion, mutationVersionAtSchedule, clubId: clubIdRef.current });
+      const res = await fetch(`${API_BASE_URL}/state/${clubIdRef.current}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ state: pureData })
+        body: JSON.stringify({ state: pureData, expectedVersion })
       });
+      if (res.status === 409) {
+        const conflictBody = await res.json().catch(() => ({}));
+        serverVersionRef.current = Number(conflictBody?.serverVersion ?? serverVersionRef.current);
+        console.warn('[SYNC_CONFLICT]', {
+          requestId,
+          expectedVersion,
+          serverVersion: serverVersionRef.current,
+          mutationVersionAtSchedule,
+          currentMutationVersion: localMutationVersionRef.current
+        });
+        setState(prev => ({ ...prev, syncStatus: 'error' }));
+        await pull({ force: true, allowDuringPush: true });
+        shouldRetry = allowRetry && mutationVersionAtSchedule === localMutationVersionRef.current;
+        return;
+      }
+      if (!res.ok) {
+        throw new Error(`Push failed with status ${res.status}`);
+      }
+      const pushPayload = await res.json();
+      const pushedVersion = Number(pushPayload?.serverVersion ?? expectedVersion);
+      serverVersionRef.current = pushedVersion;
+      clearDataDirty();
+      console.log('[SYNC_PUSH_SUCCESS]', { requestId, expectedVersion, pushedVersion, mutationVersionAtSchedule });
       setState(prev => ({ ...prev, syncStatus: 'synced' }));
     } catch (e) {
       console.error('Push failed', e);
@@ -190,11 +323,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } finally {
       isUpdatingCloud.current = false;
     }
-  }, []);
+    if (shouldRetry) {
+      const retryState = latestStateRef.current;
+      const retryMutationVersion = localMutationVersionRef.current;
+      console.log('[SYNC_PUSH_RETRY]', { requestId, mutationVersionAtSchedule: retryMutationVersion });
+      await push(retryState, retryMutationVersion, false);
+    }
+  }, [clearDataDirty, pull]);
 
   // Effect: Initialization and Polling
   useEffect(() => {
-    pull().then(() => { isFirstLoad.current = false; });
+    pull({ force: true }).then(() => { isFirstLoad.current = false; });
     const interval = setInterval(pull, SYNC_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [pull]);
@@ -206,9 +345,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       isApplyingRemoteState.current = false;
       return;
     }
-    const timeout = setTimeout(() => push(state), 1000);
+    if (!isDataDirty) return;
+    const mutationVersionAtSchedule = localMutationVersionRef.current;
+    const timeout = setTimeout(() => push(state, mutationVersionAtSchedule), 1000);
     return () => clearTimeout(timeout);
-  }, [state, push]);
+  }, [state, isDataDirty, push]);
 
   const login = (id: string) => {
     const user = state.users.find(u => u.email === id || u.quickCode === id);
@@ -224,7 +365,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const switchUser = () => setState(p => ({ ...p, currentUser: null }));
 
   // Helper for updates to trigger push
-  const update = (fn: (prev: AppState) => AppState) => setState(prev => fn(prev));
+  const update = (fn: (prev: AppState) => AppState) => {
+    markDataDirty();
+    setState(prev => fn(prev));
+  };
 
   const addUser = (u: User) => update(p => ({ ...p, users: [...p.users, u] }));
   const updateUser = (u: User) => update(p => ({ ...p, users: p.users.map(x => x.id === u.id ? u : x) }));
@@ -313,7 +457,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addEvent, updateEvent, deleteEvent, 
     addWhatsAppTemplate, updateWhatsAppTemplate, deleteWhatsAppTemplate,
     addKnowledgeFile, deleteKnowledgeFile,
-    syncNow: pull,
+    syncNow: () => {
+      void pull({ force: true });
+    },
     startTour: () => setState(p => ({ ...p, isTourActive: true })),
     endTour: () => setState(p => ({ ...p, isTourActive: false }))
   };

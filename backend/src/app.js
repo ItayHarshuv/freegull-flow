@@ -1,13 +1,21 @@
+import compression from "compression";
 import cors from "cors";
 import express from "express";
 import { ZodError, z } from "zod";
-import { readState, writeState } from "./stateRepository.js";
+import {
+  readState,
+  readStateVersion,
+  readStateWithVersion,
+  StateVersionConflictError,
+  writeState,
+} from "./stateRepository.js";
 import { pool } from "./db.js";
 
 const app = express();
 
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
+app.use(compression());
 
 const resourceMap = {
   users: "users",
@@ -23,7 +31,10 @@ const resourceMap = {
 };
 
 const clubIdSchema = z.object({ clubId: z.string().min(1) });
-const stateSchema = z.object({ state: z.record(z.string(), z.any()) });
+const stateSchema = z.object({
+  state: z.record(z.string(), z.any()),
+  expectedVersion: z.number().int().nonnegative().optional(),
+});
 const idParamSchema = z.object({ id: z.string().min(1) });
 const settingsBodySchema = z.record(z.string(), z.any());
 const closeShiftBodySchema = z.object({
@@ -35,6 +46,10 @@ const archiveEventBodySchema = z.object({
 });
 
 function sendRouteError(res, error) {
+  if (error instanceof StateVersionConflictError) {
+    return res.status(409).json({ error: "State version conflict" });
+  }
+
   if (error instanceof ZodError) {
     return res.status(400).json({
       error: "Validation failed",
@@ -61,8 +76,18 @@ app.get("/health", async (_req, res) => {
 app.get("/state/:clubId", async (req, res) => {
   try {
     const { clubId } = clubIdSchema.parse(req.params);
-    const state = await readState(clubId);
-    res.json(state);
+    const { state, version } = await readStateWithVersion(clubId);
+    res.json({ ...state, serverVersion: version });
+  } catch (error) {
+    sendRouteError(res, error);
+  }
+});
+
+app.get("/state/:clubId/version", async (req, res) => {
+  try {
+    const { clubId } = clubIdSchema.parse(req.params);
+    const version = await readStateVersion(clubId);
+    res.json({ serverVersion: version });
   } catch (error) {
     sendRouteError(res, error);
   }
@@ -72,10 +97,19 @@ app.put("/state/:clubId", async (req, res) => {
   try {
     const { clubId } = clubIdSchema.parse(req.params);
     const parsed = stateSchema.parse(req.body);
-    await writeState(clubId, parsed.state);
-    const fresh = await readState(clubId);
-    res.json(fresh);
+    await writeState(clubId, parsed.state, parsed.expectedVersion);
+    const { state, version } = await readStateWithVersion(clubId);
+    res.json({ ...state, serverVersion: version });
   } catch (error) {
+    if (error instanceof StateVersionConflictError) {
+      const { clubId } = clubIdSchema.parse(req.params);
+      const { state, version } = await readStateWithVersion(clubId);
+      return res.status(409).json({
+        error: "State version conflict",
+        serverVersion: version,
+        state,
+      });
+    }
     sendRouteError(res, error);
   }
 });
