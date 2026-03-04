@@ -26,7 +26,9 @@ const AvailabilityModule: React.FC = () => {
     dates.forEach(date => {
       const dStr = formatDateKey(date);
       const existing = availability.find(a => a.userId === currentUser?.id && a.date === dStr);
+      const generatedId = currentUser?.id ? `${currentUser.id}-${dStr}` : undefined;
       initial[dStr] = existing || {
+        id: generatedId,
         userId: currentUser?.id,
         userName: currentUser?.name,
         date: dStr,
@@ -49,9 +51,21 @@ const AvailabilityModule: React.FC = () => {
 
   const handleSaveAll = () => {
     setIsSaving(true);
-    // Fixed: Explicitly cast to Partial<Availability>[] to prevent 'unknown' type errors in .filter()
+    const userId = currentUser?.id;
     const availsToSave = (Object.values(localAvailability) as Partial<Availability>[])
-      .filter(a => a.userId && a.date) as Availability[];
+      .filter((a): a is Partial<Availability> & { userId: string; date: string } => Boolean(a.userId && a.date))
+      .map(a => ({
+        id: a.id || `${a.userId}-${a.date}`,
+        userId: a.userId,
+        userName: a.userName || currentUser?.name || '',
+        date: a.date,
+        isAvailable: Boolean(a.isAvailable),
+        isAllDay: Boolean(a.isAllDay),
+        startTime: a.startTime,
+        endTime: a.endTime,
+        notes: a.notes
+      }))
+      .filter(a => (userId ? a.userId === userId : true));
     bulkSaveAvailability(availsToSave);
     setTimeout(() => setIsSaving(false), 800);
   };

@@ -488,9 +488,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const deleteLead = (id: string) => update(p => ({ ...p, leads: p.leads.filter(x => x.id !== id) }));
 
   const bulkSaveAvailability = (avails: Availability[]) => update(p => {
-    const map = new Map();
+    const map = new Map<string, Availability>();
     p.availability.forEach(a => map.set(`${a.userId}-${a.date}`, a));
-    avails.forEach(a => map.set(`${a.userId}-${a.date}`, a));
+    avails.forEach(a => {
+      const key = `${a.userId}-${a.date}`;
+      const existing = map.get(key);
+      map.set(key, {
+        ...a,
+        id: a.id || existing?.id || key
+      });
+    });
     return { ...p, availability: Array.from(map.values()) };
   });
 
