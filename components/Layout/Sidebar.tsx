@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../store';
 import { 
   Users, Calendar, Clock, ClipboardList, 
@@ -8,15 +9,15 @@ import {
 } from 'lucide-react';
 
 interface SidebarProps {
-  currentView: string;
-  setView: (view: string) => void;
   isOpen: boolean;
   closeMobile: () => void;
 }
 
 // Fix: Correctly type the functional component props by passing SidebarProps to React.FC generic
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, closeMobile }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, closeMobile }) => {
   const { currentUser, logout, switchUser } = useAppStore();
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
   
   if (!currentUser) return null;
 
@@ -39,6 +40,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, closeMo
   ];
 
   const filteredMenu = menuItems.filter(item => item.allowed.includes(currentUser.role));
+  const getPathFromId = (id: string) => (id === 'dashboard' ? '/' : `/${id}`);
 
   const getRoleLabel = (role: string) => {
     switch(role) {
@@ -71,9 +73,16 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isOpen, closeMo
 
         <nav id="sidebar-nav" className="flex-1 overflow-y-auto py-2 px-4 space-y-1.5 custom-scrollbar">
           {filteredMenu.map(item => (
-            <button key={item.id} onClick={() => { setView(item.id); closeMobile(); }} className={`group w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all text-right flex-row-reverse ${currentView === item.id ? 'bg-brand text-white shadow-lg' : 'text-slate-600 hover:bg-slate-50'}`}>
-              <item.icon size={20} className={currentView === item.id ? 'text-white' : 'text-slate-400 group-hover:text-brand'} />
-              <span className={`text-base font-bold ${currentView === item.id ? 'font-black' : ''}`}>{item.label}</span>
+            <button
+              key={item.id}
+              onClick={() => {
+                navigate(getPathFromId(item.id));
+                closeMobile();
+              }}
+              className={`group w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all text-right flex-row-reverse ${(item.id === 'dashboard' ? pathname === '/' || pathname === '/dashboard' : pathname === getPathFromId(item.id)) ? 'bg-brand text-white shadow-lg' : 'text-slate-600 hover:bg-slate-50'}`}
+            >
+              <item.icon size={20} className={(item.id === 'dashboard' ? pathname === '/' || pathname === '/dashboard' : pathname === getPathFromId(item.id)) ? 'text-white' : 'text-slate-400 group-hover:text-brand'} />
+              <span className={`text-base font-bold ${(item.id === 'dashboard' ? pathname === '/' || pathname === '/dashboard' : pathname === getPathFromId(item.id)) ? 'font-black' : ''}`}>{item.label}</span>
             </button>
           ))}
         </nav>

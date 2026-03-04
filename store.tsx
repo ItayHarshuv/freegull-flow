@@ -120,6 +120,7 @@ const INITIAL_CLUB_SETTINGS: ClubSettings = {
 const INITIAL_STATE: AppState = {
   clubId: 'FREEGULL_MAIN',
   currentUser: null,
+  authHydrated: false,
   isEditorMode: false,
   isTourActive: false,
   users: INITIAL_USERS, 
@@ -144,10 +145,10 @@ const INITIAL_STATE: AppState = {
 };
 
 interface AppContextType extends AppState {
-  login: (identifier: string) => boolean;
-  logout: () => void;
+  login: (identifier: string) => Promise<boolean>;
+  logout: () => Promise<void>;
   enterEditorMode: () => void;
-  switchUser: () => void;
+  switchUser: () => Promise<void>;
   activeShift: Partial<Shift> | null;
   addUser: (user: User) => void;
   updateUser: (user: User) => void;
@@ -225,7 +226,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, []);
 
   const fetchServerVersion = useCallback(async () => {
-    const res = await fetch(`${API_BASE_URL}/state/${clubIdRef.current}/version`);
+    const res = await fetch(`${API_BASE_URL}/state/${clubIdRef.current}/version`, {
+      credentials: 'include'
+    });
     if (!res.ok) {
       throw new Error(`Version check failed with status ${res.status}`);
     }
@@ -250,7 +253,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
       }
 
-      const res = await fetch(`${API_BASE_URL}/state/${clubIdRef.current}`);
+      const res = await fetch(`${API_BASE_URL}/state/${clubIdRef.current}`, {
+        credentials: 'include'
+      });
       if (res.ok) {
         const cloudPayload = await res.json();
         const serverVersion = Number(cloudPayload?.serverVersion ?? 0);
@@ -269,6 +274,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           syncStatus: 'synced',
           lastSyncTime: new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
         }));
+      } else if (res.status === 401) {
+        setState(prev => ({ ...prev, currentUser: null, syncStatus: 'error' }));
       }
     } catch (e) {
       console.error('Pull failed', e);
@@ -280,7 +287,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (isUpdatingCloud.current) return;
     isUpdatingCloud.current = true;
     
-    const { currentUser, isEditorMode, syncStatus, lastSyncTime, isTourActive, ...pureData } = dataToPush;
+    const { currentUser, authHydrated: _authHydrated, isEditorMode, syncStatus, lastSyncTime, isTourActive, ...pureData } = dataToPush;
     clubIdRef.current = pureData.clubId || clubIdRef.current;
     const expectedVersion = serverVersionRef.current;
     const requestId = ++requestIdRef.current;
@@ -290,6 +297,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       console.log('[SYNC_PUSH_START]', { requestId, expectedVersion, mutationVersionAtSchedule, clubId: clubIdRef.current });
       const res = await fetch(`${API_BASE_URL}/state/${clubIdRef.current}`, {
         method: 'PUT',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ state: pureData, expectedVersion })
       });
@@ -331,12 +339,40 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [clearDataDirty, pull]);
 
-  // Effect: Initialization and Polling
+  // Effect: restore auth session from backend cookie
   useEffect(() => {
+    const hydrateAuth = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/auth/me?clubId=${clubIdRef.current}`, {
+          credentials: 'include'
+        });
+        if (res.ok) {
+          const payload = await res.json();
+          setState(prev => ({
+            ...prev,
+            currentUser: payload?.user || null,
+            authHydrated: true
+          }));
+          return;
+        }
+      } catch (error) {
+        console.error('Auth hydration failed', error);
+      }
+      setState(prev => ({ ...prev, currentUser: null, authHydrated: true }));
+    };
+    void hydrateAuth();
+  }, []);
+
+  // Effect: Initialization and Polling while authenticated
+  useEffect(() => {
+    if (!state.authHydrated || !state.currentUser) {
+      isFirstLoad.current = true;
+      return;
+    }
     pull({ force: true }).then(() => { isFirstLoad.current = false; });
     const interval = setInterval(pull, SYNC_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [pull]);
+  }, [pull, state.authHydrated, state.currentUser]);
 
   // Effect: Auto-Push on any state change
   useEffect(() => {
@@ -351,18 +387,42 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return () => clearTimeout(timeout);
   }, [state, isDataDirty, push]);
 
-  const login = (id: string) => {
-    const user = state.users.find(u => u.email === id || u.quickCode === id);
-    if (user && !user.isArchived) {
-      setState(p => ({ ...p, currentUser: user }));
+  const login = async (id: string) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clubId: clubIdRef.current, identifier: id })
+      });
+      if (!res.ok) return false;
+      const payload = await res.json();
+      const user = payload?.user || null;
+      if (!user) return false;
+      setState(prev => ({ ...prev, currentUser: user, authHydrated: true, isEditorMode: false }));
       return true;
+    } catch (error) {
+      console.error('Login failed', error);
+      return false;
     }
-    return false;
   };
 
-  const logout = () => setState(p => ({ ...p, currentUser: null }));
+  const logout = async () => {
+    try {
+      await fetch(`${API_BASE_URL}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (error) {
+      console.error('Logout request failed', error);
+    } finally {
+      setState(prev => ({ ...prev, currentUser: null }));
+    }
+  };
   const enterEditorMode = () => setState(p => ({ ...p, isEditorMode: true }));
-  const switchUser = () => setState(p => ({ ...p, currentUser: null }));
+  const switchUser = async () => {
+    await logout();
+  };
 
   // Helper for updates to trigger push
   const update = (fn: (prev: AppState) => AppState) => {

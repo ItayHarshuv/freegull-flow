@@ -9,7 +9,7 @@ const LoginScreen: React.FC = () => {
   const [error, setError] = useState('');
   const SECRET_CODE = 'freegullflow2213';
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanId = identifier.trim().toLowerCase();
     if (!cleanId) return;
@@ -21,14 +21,14 @@ const LoginScreen: React.FC = () => {
       return;
     }
 
-    const success = login(identifier.trim());
+    const success = await login(identifier.trim());
     if (!success) {
-      setError('פרטי הכניסה לא זוהו. נסה אימייל או קוד אישי תקין.');
+      setError('פרטי הכניסה לא זוהו. נסה קוד PIN אישי תקין.');
     }
   };
 
-  const handleQuickLogin = (email: string) => {
-    login(email);
+  const handleQuickLogin = async (credential: string) => {
+    await login(credential);
   };
 
   return (
@@ -58,7 +58,7 @@ const LoginScreen: React.FC = () => {
               {users.filter(u => !u.isArchived).map(user => (
                 <button
                   key={user.id}
-                  onClick={() => handleQuickLogin(user.email)}
+                  onClick={() => handleQuickLogin(user.quickCode || user.email)}
                   className="flex items-center justify-between p-3.5 bg-slate-50 hover:bg-white hover:shadow-md border border-slate-100 hover:border-brand rounded-xl transition-all group flex-row-reverse"
                 >
                   <div className="flex items-center gap-3.5 flex-row-reverse">
@@ -93,7 +93,7 @@ const LoginScreen: React.FC = () => {
                        className="w-full p-4 pr-12 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-brand transition-all font-black text-slate-800 text-right shadow-inner text-base"
                        value={identifier}
                        onChange={e => { setIdentifier(e.target.value); setError(''); }}
-                       placeholder="אימייל או קוד גישה (PIN)"
+                       placeholder="קוד גישה אישי (PIN)"
                     />
                  </div>
                  {error && (
@@ -118,7 +118,7 @@ const LoginScreen: React.FC = () => {
                </div>
                <p className="text-[9px] font-bold text-slate-400 leading-relaxed uppercase tracking-tight">
                  הגישה מיועדת לצוות המורשה של המועדון בלבד. <br/>
-                 ניתן להתחבר עם אימייל מלא או קוד PIN אישי.
+                 ההתחברות מתבצעת באמצעות קוד PIN אישי.
                </p>
             </div>
           </form>

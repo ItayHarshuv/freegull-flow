@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../store';
 import { 
   Calendar, BookOpen, LifeBuoy, 
@@ -7,12 +8,12 @@ import {
 } from 'lucide-react';
 
 interface DashboardModuleProps {
-  setView: (view: string) => void;
   userName: string;
 }
 
-const DashboardModule: React.FC<DashboardModuleProps> = ({ setView, userName }) => {
+const DashboardModule: React.FC<DashboardModuleProps> = ({ userName }) => {
   const { currentUser } = useAppStore();
+  const navigate = useNavigate();
 
   const allNavItems = [
     { id: 'daily_work', label: 'יום עבודה', icon: Clock, color: 'brand-gradient text-white', desc: 'פתיחת שעון ולו"ז יומי', allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Warehouse'] },
@@ -28,6 +29,7 @@ const DashboardModule: React.FC<DashboardModuleProps> = ({ setView, userName }) 
   ];
 
   const navItems = allNavItems.filter(item => item.allowed.includes(currentUser?.role || ''));
+  const getPathFromId = (id: string) => (id === 'dashboard' ? '/' : `/${id}`);
 
   return (
     <div className="space-y-8 md:space-y-16 animate-fade-in text-right px-2">
@@ -42,7 +44,7 @@ const DashboardModule: React.FC<DashboardModuleProps> = ({ setView, userName }) 
         {navItems.map((item) => (
           <button
             key={item.id}
-            onClick={() => setView(item.id)}
+            onClick={() => navigate(getPathFromId(item.id))}
             className="group relative bg-white p-6 md:p-8 rounded-[2rem] md:rounded-[3rem] border border-slate-200 shadow-sm hover:shadow-xl hover:border-brand/40 transition-all text-right flex flex-col items-start gap-4 active:scale-95 overflow-hidden"
           >
             <div className={`w-12 h-12 md:w-16 md:h-16 rounded-[1.2rem] md:rounded-[1.5rem] ${item.color} flex items-center justify-center shadow-lg group-hover:rotate-3 transition-all duration-500`}>

@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppProvider, useAppStore } from './store';
 import Sidebar from './components/Layout/Sidebar';
 import LoginScreen from './components/LoginScreen';
@@ -22,32 +23,14 @@ import ClubInfoModule from './components/Modules/ClubInfoModule';
 import { Menu, Waves, Cloud, CloudOff, RefreshCw } from 'lucide-react';
 
 const DashboardContent: React.FC = () => {
-  const { currentUser, syncStatus, lastSyncTime, clubId, syncNow } = useAppStore();
-  const [currentView, setView] = useState('dashboard');
+  const { currentUser, authHydrated, syncStatus, lastSyncTime, clubId, syncNow } = useAppStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  if (!currentUser) return <LoginScreen />;
+  if (!authHydrated) {
+    return <div className="min-h-screen bg-[#F8FAFC]" />;
+  }
 
-  const renderModule = () => {
-    switch (currentView) {
-      case 'dashboard': return <DashboardModule setView={setView} userName={currentUser.name} />;
-      case 'calendar': return <CalendarModule />;
-      case 'lessons': return <SchedulingModule />;
-      case 'daily_work': return <DailyWorkModule />;
-      case 'availability': return <AvailabilityModule />;
-      case 'rentals': return <RentalsModule />;
-      case 'tasks': return <TasksModule />;
-      case 'leads': return <LeadsModule />;
-      case 'employee_page': return <EmployeeModule />;
-      case 'club_info': return <ClubInfoModule />;
-      case 'knowledge': return <KnowledgeModule />;
-      case 'admin': return <AdminModule />;
-      case 'events': return <EventsModule />;
-      case 'payroll': return <PayrollModule />;
-      case 'maintenance': return <MaintenanceModule />;
-      default: return <DashboardModule setView={setView} userName={currentUser.name} />;
-    }
-  };
+  if (!currentUser) return <LoginScreen />;
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-800 flex font-sans antialiased overflow-x-hidden selection:bg-brand/20" dir="rtl">
@@ -90,12 +73,30 @@ const DashboardContent: React.FC = () => {
          </div>
       </header>
 
-      <Sidebar currentView={currentView} setView={setView} isOpen={isMobileMenuOpen} closeMobile={() => setIsMobileMenuOpen(false)} />
+      <Sidebar isOpen={isMobileMenuOpen} closeMobile={() => setIsMobileMenuOpen(false)} />
       
       <main id="main-content" className="flex-1 transition-all duration-300 ease-in-out md:mr-[280px]">
         <div className="pt-20 md:pt-28 p-4 md:p-12">
           <div className="animate-fade-in max-w-[1600px] mx-auto pb-16">
-            {renderModule()}
+            <Routes>
+              <Route path="/" element={<DashboardModule userName={currentUser.name} />} />
+              <Route path="/dashboard" element={<Navigate to="/" replace />} />
+              <Route path="/calendar" element={<CalendarModule />} />
+              <Route path="/lessons" element={<SchedulingModule />} />
+              <Route path="/daily_work" element={<DailyWorkModule />} />
+              <Route path="/availability" element={<AvailabilityModule />} />
+              <Route path="/rentals" element={<RentalsModule />} />
+              <Route path="/tasks" element={<TasksModule />} />
+              <Route path="/leads" element={<LeadsModule />} />
+              <Route path="/employee_page" element={<EmployeeModule />} />
+              <Route path="/club_info" element={<ClubInfoModule />} />
+              <Route path="/knowledge" element={<KnowledgeModule />} />
+              <Route path="/admin" element={<AdminModule />} />
+              <Route path="/events" element={<EventsModule />} />
+              <Route path="/payroll" element={<PayrollModule />} />
+              <Route path="/maintenance" element={<MaintenanceModule />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
           </div>
         </div>
       </main>

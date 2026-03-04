@@ -211,6 +211,7 @@ export interface KnowledgeFile {
 export interface AppState {
   clubId: string; // The ID for cloud synchronization
   currentUser: User | null;
+  authHydrated: boolean;
   isEditorMode: boolean; 
   /* Add isTourActive to AppState */
   isTourActive: boolean;
