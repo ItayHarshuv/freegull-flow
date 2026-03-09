@@ -2,7 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { useAppStore } from '../../store';
 import { Role, Certification, User } from '../../types';
-import { UserPlus, Trash2, Edit2, X, Archive, Save, Star, Banknote, FileCheck, Upload, Download, FileText, Building2, Key } from 'lucide-react';
+import { UserPlus, Edit2, X, Archive, Save, Star, Banknote, FileCheck, Upload, Download, FileText, Building2, Key } from 'lucide-react';
 
 const CERTS: Certification[] = [
   'גלישת גלים', 'סאפ', 'גלישת רוח', 'גלישת כנף', 'קטמרן', 'גלישת קייט', 'מפעיל סירת חילוץ'
@@ -130,7 +130,7 @@ const AdminModule: React.FC = () => {
                      <Star size={14} /> {user.isFullTime ? 'משרה מלאה' : 'משרה חלקית'}
                   </div>
                   <div className="flex items-center gap-2 flex-row-reverse text-[10px] font-black text-brand col-span-2">
-                     <Key size={14} /> קוד גישה: <span className="font-black tabular-nums">{user.quickCode || 'לא הוגדר'}</span>
+                     <Key size={14} /> PIN התחברות: <span className="font-black">{user.quickCode ? 'מוגדר' : 'לא הוגדר'}</span>
                   </div>
                </div>
             </div>

@@ -36,4 +36,4 @@ erDiagram
   - `club_rental_items`
   - `club_rental_statuses`
 - `active_shifts.payload` is JSONB because the active shift in the frontend can be partial.
-- Card deposit fields are included in `lessons` and `event_participants`; move to tokenization/encryption in production.
+- Raw card data is being removed from the schema; future deposit flows must keep only provider references and masked display fields.

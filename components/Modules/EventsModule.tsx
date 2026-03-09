@@ -1,8 +1,8 @@
 
 import React, { useState, useRef, useMemo } from 'react';
 import { useAppStore } from '../../store';
-import { Anchor, Waves, Plus, Search, User, Phone, Check, Globe, X, ShieldCheck, Calendar, ChevronDown, ChevronUp, Filter, ListPlus, Trash2, CreditCard, Copy, Table, AlertTriangle, LifeBuoy, Play, Minus, ChevronRight, ChevronLeft, BarChart3, Archive, Undo2, Edit, Ship, Save } from 'lucide-react';
-import { SeaEvent, EventParticipant, CreditCardInfo, BoatAssignment } from '../../types';
+import { Anchor, Waves, Plus, Search, User, Phone, Check, Globe, X, ShieldCheck, Calendar, ChevronDown, ChevronUp, Filter, ListPlus, Trash2, Copy, Table, AlertTriangle, LifeBuoy, Play, Minus, ChevronRight, ChevronLeft, BarChart3, Archive, Undo2, Edit, Ship, Save } from 'lucide-react';
+import { SeaEvent, EventParticipant, BoatAssignment } from '../../types';
 
 interface BulkParticipantEntry {
   tempId: string;
@@ -675,8 +675,6 @@ const EventsModule: React.FC = () => {
                              </div>
                              
                              <div className="flex flex-col items-end gap-2 shrink-0">
-                                {/* Fix: Move the 'title' prop from Lucide icon to a wrapper as 'title' isn't supported directly on Lucide components in some environments */}
-                                {p.creditCardDeposit && <span title="פרטי אשראי שמורים"><CreditCard size={20} className="text-emerald-500" /></span>}
                                 {isManager && !publicMode && (
                                    <div className="flex gap-1">
                                       <button onClick={() => handleEditParticipantStart(p)} className="text-white bg-blue-600 hover:bg-blue-700 p-1.5 rounded-lg transition-all shadow-sm">
@@ -845,7 +843,7 @@ const EventsModule: React.FC = () => {
               </div>
 
               <div className="bg-indigo-50/50 p-4 rounded-2xl mb-6 flex items-center gap-3 border border-indigo-100 text-indigo-900 font-bold text-xs flex-row-reverse">
-                 <Copy size={16}/> ניתן להדביק עמודות בסדר הבא: שם | טלפון | סוג ספורט | פרטים/הערות | (אופציונלי: אשראי, תוקף, CVV, ת.ז)
+                 <Copy size={16}/> ניתן להדביק עמודות בסדר הבא: שם | טלפון | סוג ספורט | פרטים/הערות
               </div>
 
               <div className="space-y-6">

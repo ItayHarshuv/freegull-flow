@@ -5,107 +5,6 @@ import { AppState, User, Shift, Lesson, Rental, Task, Availability, ConfirmedShi
 const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:4000';
 const SYNC_INTERVAL_MS = 5000;
 
-let fetchLoggerInstalled = false;
-
-const formatBytes = (bytes: number | null) => {
-  if (bytes === null) return 'unknown';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-};
-
-const estimateRequestBodyBytes = (body: RequestInit['body']): number | null => {
-  if (!body) return 0;
-  if (typeof body === 'string') return new TextEncoder().encode(body).length;
-  if (body instanceof URLSearchParams) return new TextEncoder().encode(body.toString()).length;
-  if (typeof Blob !== 'undefined' && body instanceof Blob) return body.size;
-  if (body instanceof ArrayBuffer) return body.byteLength;
-  if (ArrayBuffer.isView(body)) return body.byteLength;
-  return null;
-};
-
-const detectRequestKind = (url: string, method: string) => {
-  const normalizedMethod = method.toUpperCase();
-  const isVersionCheck = /\/state\/[^/]+\/version(?:\?|$)/.test(url);
-  const isStateSync = /\/state\/[^/?]+(?:\?|$)/.test(url);
-
-  if (normalizedMethod === 'GET' && isVersionCheck) return 'sync-version-check';
-  if (normalizedMethod === 'GET' && isStateSync) return 'sync-full-pull';
-  if (normalizedMethod === 'PUT' && isStateSync) return 'sync-full-push';
-  return 'api-other';
-};
-
-const installFrontendFetchLogger = () => {
-  if (fetchLoggerInstalled || typeof globalThis.fetch !== 'function') return;
-
-  const originalFetch = globalThis.fetch.bind(globalThis);
-  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    const requestUrl =
-      typeof input === 'string'
-        ? input
-        : input instanceof URL
-          ? input.toString()
-          : input.url;
-    const method = init?.method || (input instanceof Request ? input.method : 'GET');
-    const requestKind = detectRequestKind(requestUrl, method);
-    const requestBodyBytes = estimateRequestBodyBytes(init?.body);
-
-    try {
-      const response = await originalFetch(input, init);
-      const contentType = response.headers.get('content-type') || '';
-      const responseClone = response.clone();
-      const responseBytes = await responseClone.arrayBuffer();
-      const responseBodyBytes = responseBytes.byteLength;
-      let responseBody: unknown = null;
-
-      try {
-        if (contentType.includes('application/json')) {
-          const text = new TextDecoder().decode(responseBytes);
-          responseBody = JSON.parse(text);
-        } else if (contentType.startsWith('text/')) {
-          responseBody = new TextDecoder().decode(responseBytes);
-        } else {
-          responseBody = `[Body omitted for content-type: ${contentType || 'unknown'}]`;
-        }
-      } catch (parseError) {
-        responseBody = '[Unable to parse response body]';
-        console.error('[FRONTEND_HTTP_RESPONSE_PARSE_FAILED]', { method, url: requestUrl, parseError });
-      }
-
-      console.log('[FRONTEND_HTTP_RESPONSE]', {
-        method,
-        url: requestUrl,
-        kind: requestKind,
-        requestBodyBytes,
-        requestBodySize: formatBytes(requestBodyBytes),
-        ok: response.ok,
-        status: response.status,
-        statusText: response.statusText,
-        responseBodyBytes,
-        responseBodySize: formatBytes(responseBodyBytes),
-        body: responseBody
-      });
-
-      return response;
-    } catch (error) {
-      console.error('[FRONTEND_HTTP_REQUEST_FAILED]', { method, url: requestUrl, error });
-      throw error;
-    }
-  }) as typeof globalThis.fetch;
-
-  fetchLoggerInstalled = true;
-};
-
-const INITIAL_USERS: User[] = [
-  { id: 'u2', name: 'אור פרידמן', email: 'or@wind.co.il', phone: '0524383707', role: 'Manager', avatar: '', certifications: ['גלישת גלים', 'סאפ'], isArchived: false, isFullTime: true, fixedDayOff: null, canAddBonuses: true, quickCode: '1001' },
-  { id: 'u3', name: 'דן פרידמן', email: 'dan@wind.co.il', phone: '0526920922', role: 'Manager', avatar: '', certifications: ['גלישת רוח'], isArchived: false, isFullTime: true, fixedDayOff: null, canAddBonuses: true, quickCode: '1002' },
-  { id: 'u4', name: 'ברנדון קפלן שילד', email: 'brandon@wind.co.il', phone: '0502202532', role: 'Shift Manager', avatar: '', certifications: ['גלישת כנף', 'קטמרן'], isArchived: false, canAddBonuses: true, quickCode: '1003' },
-  { id: 'u7', name: 'Freegull-חנות', email: 'shop@wind.co.il', phone: '0500000000', role: 'Shop Computer', avatar: '', certifications: [], isArchived: false, canAddBonuses: false, quickCode: '2025' },
-  { id: 'u1', name: 'שחר אגוזי', email: 'shachar.egosi@gmail.com', phone: '0504340049', role: 'Instructor', avatar: '', certifications: ['גלישת כנף', 'קטמרן'], isArchived: false, isFullTime: false, fixedDayOff: null, canAddBonuses: false, quickCode: '1111' },
-  { id: 'u5', name: 'יהלי לבקוביץ', email: 'yahli@wind.co.il', phone: '0535680071', role: 'Instructor', avatar: '', certifications: ['גלישת גלים', 'סאפ'], isArchived: false, canAddBonuses: false, quickCode: '2222' },
-  { id: 'u6', name: 'דוד', email: 'david@wind.co.il', phone: '0544455667', role: 'Warehouse', avatar: '', certifications: [], isArchived: false, canAddBonuses: false, quickCode: '3333' },
-];
-
 const INITIAL_CLUB_SETTINGS: ClubSettings = {
   landline: '09-8651474',
   mobile: '052-4383707',
@@ -123,7 +22,7 @@ const INITIAL_STATE: AppState = {
   authHydrated: false,
   isEditorMode: false,
   isTourActive: false,
-  users: INITIAL_USERS, 
+  users: [],
   shifts: [],
   lessons: [],
   confirmedShifts: [],
@@ -207,10 +106,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const latestStateRef = useRef(INITIAL_STATE);
 
   useEffect(() => {
-    installFrontendFetchLogger();
-  }, []);
-
-  useEffect(() => {
     latestStateRef.current = state;
   }, [state]);
 
@@ -268,8 +163,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           ...prev,
           ...cloudData,
           clubId: nextClubId,
-          // If backend is freshly initialized (empty users), keep built-in users for login.
-          users: Array.isArray(cloudData.users) && cloudData.users.length > 0 ? cloudData.users : prev.users,
+          users: Array.isArray(cloudData.users) ? cloudData.users : prev.users,
           currentUser: prev.currentUser, // Auth stays local to session
           syncStatus: 'synced',
           lastSyncTime: new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })

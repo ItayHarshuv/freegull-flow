@@ -233,14 +233,6 @@ async function readStateTx(client, clubId) {
       hasArrived: row.has_arrived,
       rescues: row.rescues,
       notes: row.notes ?? undefined,
-      creditCardDeposit: row.credit_card_number
-        ? {
-            number: row.credit_card_number,
-            expiry: row.credit_card_expiry,
-            cvv: row.credit_card_cvv,
-            ownerId: row.credit_card_owner_id,
-          }
-        : undefined,
     });
     participantsByEvent.set(row.event_id, current);
   }
@@ -326,14 +318,6 @@ async function readStateTx(client, clubId) {
         isPaid: l.is_paid ?? undefined,
         isCancelled: l.is_cancelled ?? undefined,
         isArchived: l.is_archived ?? undefined,
-        creditCardDeposit: l.credit_card_number
-          ? {
-              number: l.credit_card_number,
-              expiry: l.credit_card_expiry,
-              cvv: l.credit_card_cvv,
-              ownerId: l.credit_card_owner_id,
-            }
-          : undefined,
       })),
       rentals: rentalsRes.rows.map((r) => ({
         id: r.id,
@@ -565,11 +549,10 @@ export async function writeState(clubId, state, expectedVersion) {
           INSERT INTO lessons (
             id, club_id, client_name, phone, lesson_type, path_type, lesson_number,
             lesson_date, start_time, end_time, instructor_id, voucher_number, has_voucher,
-            is_registered, is_paid, is_cancelled, is_archived, credit_card_number,
-            credit_card_expiry, credit_card_cvv, credit_card_owner_id
+            is_registered, is_paid, is_cancelled, is_archived
           )
           VALUES (
-            $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21
+            $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17
           )
         `,
         [
@@ -590,10 +573,6 @@ export async function writeState(clubId, state, expectedVersion) {
           lesson.isPaid ?? null,
           lesson.isCancelled ?? null,
           lesson.isArchived ?? null,
-          lesson.creditCardDeposit?.number ?? null,
-          lesson.creditCardDeposit?.expiry ?? null,
-          lesson.creditCardDeposit?.cvv ?? null,
-          lesson.creditCardDeposit?.ownerId ?? null,
         ]
       );
     }
@@ -727,10 +706,9 @@ export async function writeState(clubId, state, expectedVersion) {
         await client.query(
           `
             INSERT INTO event_participants (
-              id, event_id, name, phone, equipment, status, has_arrived, rescues, notes,
-              credit_card_number, credit_card_expiry, credit_card_cvv, credit_card_owner_id
+              id, event_id, name, phone, equipment, status, has_arrived, rescues, notes
             )
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
           `,
           [
             p.id,
@@ -742,10 +720,6 @@ export async function writeState(clubId, state, expectedVersion) {
             !!p.hasArrived,
             p.rescues ?? 0,
             p.notes ?? null,
-            p.creditCardDeposit?.number ?? null,
-            p.creditCardDeposit?.expiry ?? null,
-            p.creditCardDeposit?.cvv ?? null,
-            p.creditCardDeposit?.ownerId ?? null,
           ]
         );
       }

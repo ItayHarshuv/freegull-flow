@@ -1,23 +1,39 @@
 {
-  "name": "freegull-flow",
+  "name": "@freegull-flow/legacy",
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "packageManager": "pnpm@10.6.3",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev:web": "corepack pnpm --filter @freegull-flow/web dev",
+    "dev:api": "corepack pnpm --filter @freegull-flow/api dev",
+    "build:web": "corepack pnpm --filter @freegull-flow/web build",
+    "build:api": "corepack pnpm --filter @freegull-flow/api build",
+    "build:mobile": "corepack pnpm --filter @freegull-flow/mobile build",
+    "lint": "tsc -p tsconfig.json --noEmit && corepack pnpm --filter @freegull-flow/contracts lint && corepack pnpm --filter @freegull-flow/db lint && corepack pnpm --filter @freegull-flow/ui lint && corepack pnpm --filter @freegull-flow/api lint && corepack pnpm --filter @freegull-flow/web lint && corepack pnpm --filter @freegull-flow/mobile lint",
+    "typecheck": "tsc -p tsconfig.json --noEmit && corepack pnpm --filter @freegull-flow/contracts typecheck && corepack pnpm --filter @freegull-flow/db typecheck && corepack pnpm --filter @freegull-flow/ui typecheck && corepack pnpm --filter @freegull-flow/api typecheck && corepack pnpm --filter @freegull-flow/web typecheck && corepack pnpm --filter @freegull-flow/mobile typecheck"
   },
   "dependencies": {
-    "@google/genai": "^1.38.0",
     "lucide-react": "^0.562.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-router-dom": "^7.13.1"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.13",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.13",
+    "turbo": "^2.5.6",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }

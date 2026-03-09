@@ -1,8 +1,8 @@
 
-import { BookOpen, Calendar, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Circle, Clock, CreditCard, Edit2, Filter, GraduationCap, Hash, MessageCircle, Phone, Plus, Save, Search, ShieldCheck, Ticket, UserCheck, Waves, X, HelpCircle, Archive, Trash2, Undo2 } from 'lucide-react';
+import { BookOpen, Calendar, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Circle, Clock, Edit2, Filter, GraduationCap, Hash, MessageCircle, Phone, Plus, Save, Search, ShieldCheck, Ticket, UserCheck, Waves, X, HelpCircle, Archive, Trash2, Undo2 } from 'lucide-react';
 import React, { useMemo, useState, useEffect } from 'react';
 import { useAppStore } from '../../store';
-import { Certification, CreditCardInfo, Lesson, LessonPath } from '../../types';
+import { Certification, Lesson, LessonPath } from '../../types';
 
 const SPORT_TYPES: { value: Certification, icon: React.ReactNode, duration: number, lessons: number }[] = [
   { value: 'גלישת גלים', icon: <Waves size={24} />, duration: 90, lessons: 4 },
@@ -43,7 +43,6 @@ const SchedulingModule: React.FC = () => {
   const [showArchive, setShowArchive] = useState(false);
   
   // Pickers state
-  const [isCCModalOpen, setIsCCModalOpen] = useState(false);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isTimePickerOpen, setIsTimePickerOpen] = useState(false);
   const [isSportPickerOpen, setIsSportPickerOpen] = useState(false);
@@ -67,7 +66,6 @@ const SchedulingModule: React.FC = () => {
     endTime: '11:30',
     date: new Date().toISOString().split('T')[0],
     instructorId: '',
-    creditCardDeposit: { number: '', expiry: '', cvv: '', ownerId: '' },
     voucherNumber: '',
     hasVoucher: false,
     isRegistered: false,
@@ -198,7 +196,6 @@ const SchedulingModule: React.FC = () => {
       endTime: `${tempTimeEnd.h}:${tempTimeEnd.m}`,
       date: form.date!,
       instructorId: form.instructorId,
-      creditCardDeposit: form.creditCardDeposit?.number ? form.creditCardDeposit : undefined,
       voucherNumber: form.hasVoucher ? form.voucherNumber : undefined,
       isRegistered: form.isRegistered,
       isPaid: form.isPaid,
@@ -219,8 +216,7 @@ const SchedulingModule: React.FC = () => {
     setEditingLessonId(lesson.id);
     setForm({
       ...lesson,
-      hasVoucher: !!lesson.voucherNumber,
-      creditCardDeposit: lesson.creditCardDeposit || { number: '', expiry: '', cvv: '', ownerId: '' }
+      hasVoucher: !!lesson.voucherNumber
     });
     const [sh, sm] = (lesson.time || '10:00').split(':');
     const [eh, em] = (lesson.endTime || '11:00').split(':');
@@ -277,23 +273,10 @@ const SchedulingModule: React.FC = () => {
               {editingLessonId ? <Edit2 size={28} className="text-brand" strokeWidth={4} /> : <Plus size={28} className="text-brand" strokeWidth={4} />}
             </h3>
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                  <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">שם הלקוח</label>
                     <input required value={form.clientName} onChange={e => setForm({...form, clientName: e.target.value})} placeholder="שם מלא" className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-right shadow-inner focus:ring-2 focus:ring-brand" />
-                 </div>
-                 <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">פיקדון / אשראי</label>
-                    <button 
-                      type="button"
-                      onClick={() => setIsCCModalOpen(true)}
-                      className={`w-full p-5 flex items-center justify-between rounded-2xl border-2 transition-all cursor-pointer ${form.creditCardDeposit?.number ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-slate-50 border-slate-100 text-slate-400 shadow-inner'}`}
-                    >
-                       <CreditCard size={18} />
-                       <span className="font-black text-xs truncate">
-                          {form.creditCardDeposit?.number ? `כרטיס: ****${form.creditCardDeposit.number.slice(-4)}` : 'הזן פרטי אשראי'}
-                       </span>
-                    </button>
                  </div>
               </div>
 
@@ -697,39 +680,6 @@ const SchedulingModule: React.FC = () => {
                  {availableInstructors.length === 0 && (
                    <div className="py-10 text-center text-slate-300 italic font-black">אין מדריכים פנויים בשעות אלו.</div>
                  )}
-              </div>
-           </div>
-        </div>
-      )}
-
-      {/* Credit Card Modal */}
-      {isCCModalOpen && (
-        <div className="fixed inset-0 z-[160] flex items-center justify-center bg-slate-900/80 backdrop-blur-md p-4 animate-fade-in" onClick={() => setIsCCModalOpen(false)}>
-           <div className="bg-white w-full max-w-lg rounded-[3rem] p-10 text-right shadow-2xl" onClick={e => e.stopPropagation()}>
-              <div className="flex justify-between items-center mb-8 flex-row-reverse">
-                <h3 className="text-2xl font-black text-slate-900">פרטי פיקדון אשראי</h3>
-                <button onClick={() => setIsCCModalOpen(false)} className="p-2 hover:text-rose-500 transition-colors"><X size={24}/></button>
-              </div>
-              <div className="space-y-4">
-                 <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">מספר כרטיס</label>
-                    <input className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-left tabular-nums outline-none focus:border-brand" placeholder="0000 0000 0000 0000" value={form.creditCardDeposit?.number} onChange={e => setForm({...form, creditCardDeposit: {...form.creditCardDeposit!, number: e.target.value}})} />
-                 </div>
-                 <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">תוקף (MM/YY)</label>
-                       <input className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-center tabular-nums outline-none focus:border-brand" placeholder="MM/YY" value={form.creditCardDeposit?.expiry} onChange={e => setForm({...form, creditCardDeposit: {...form.creditCardDeposit!, expiry: e.target.value}})} />
-                    </div>
-                    <div className="space-y-1">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">CVV</label>
-                       <input className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-center tabular-nums outline-none focus:border-brand" placeholder="000" maxLength={3} value={form.creditCardDeposit?.cvv} onChange={e => setForm({...form, creditCardDeposit: {...form.creditCardDeposit!, cvv: e.target.value}})} />
-                    </div>
-                 </div>
-                 <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">מספר תעודת זהות</label>
-                    <input className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-left tabular-nums outline-none focus:border-brand" placeholder="000000000" value={form.creditCardDeposit?.ownerId} onChange={e => setForm({...form, creditCardDeposit: {...form.creditCardDeposit!, ownerId: e.target.value}})} />
-                 </div>
-                 <button onClick={() => setIsCCModalOpen(false)} className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black shadow-xl mt-4 active:scale-95 transition-all">שמור פרטי פיקדון</button>
               </div>
            </div>
         </div>

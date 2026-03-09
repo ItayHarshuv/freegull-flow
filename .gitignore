@@ -17,6 +17,9 @@ dist-ssr/
 build/
 backend/dist/
 coverage/
+.turbo/
+apps/mobile/android/
+apps/mobile/ios/
 
 # Cache/temp
 .cache/

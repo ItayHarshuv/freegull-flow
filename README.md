@@ -15,8 +15,7 @@ View your app in AI Studio: https://ai.studio/apps/drive/1xA6Y69-SEdwfjjeXD0neqt
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Start the frontend:
+2. Start the frontend:
    `npm run dev`
 
 ## PostgreSQL Migration Runtime
@@ -36,6 +35,17 @@ This repo now includes a backend service in `backend/` for PostgreSQL persistenc
    - `npm run dev`
 
 Frontend reads/writes through `VITE_API_BASE_URL` (defaults to `http://localhost:4000`).
+
+## Rebuild Workspace
+
+This repo is being migrated to a shared web + Capacitor architecture:
+
+- `apps/web`: new Vite + React shell
+- `apps/api`: new Hono API
+- `apps/mobile`: Capacitor wrapper
+- `packages/contracts`, `packages/db`, `packages/ui`: shared packages
+
+The current root Vite app remains as the legacy client during migration.
 
 ## Docker (Frontend + Backend + Postgres)
 

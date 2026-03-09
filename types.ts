@@ -50,13 +50,6 @@ export interface BoatAssignment {
   assistantId: string;
 }
 
-export interface CreditCardInfo {
-  number: string;
-  expiry: string;
-  cvv: string;
-  ownerId: string;
-}
-
 export interface EventParticipant {
   id: string;
   name: string;
@@ -66,7 +59,6 @@ export interface EventParticipant {
   hasArrived: boolean; // Did the user physically arrive and activate?
   rescues: number; // Counter 0-3
   notes?: string; // General details
-  creditCardDeposit?: CreditCardInfo;
 }
 
 export interface SeaEvent {
@@ -140,7 +132,6 @@ export interface Lesson {
   time: string; // Start time
   endTime?: string; // End time
   instructorId?: string;
-  creditCardDeposit?: CreditCardInfo; 
   voucherNumber?: string;
   hasVoucher?: boolean;
   isRegistered?: boolean; // Health declaration filled
