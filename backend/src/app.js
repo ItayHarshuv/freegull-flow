@@ -18,7 +18,16 @@ const app = express();
 const AUTH_COOKIE_NAME = "freegull_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 14;
 const allowEmailLogin = process.env.ALLOW_EMAIL_LOGIN === "true";
-const allowedOrigins = (process.env.FRONTEND_ORIGIN || "http://localhost:3000")
+const defaultFrontendOrigins = [
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:3001",
+  "http://localhost:4173",
+  "http://127.0.0.1:4173",
+].join(",");
+
+const allowedOrigins = (process.env.FRONTEND_ORIGIN || defaultFrontendOrigins)
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);

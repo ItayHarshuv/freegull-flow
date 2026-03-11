@@ -1,0 +1,114 @@
+
+import React, { useState } from 'react';
+import { useAppStore } from '../../store';
+import { BonusItem } from '../../types';
+import { Clock, LogOut, DollarSign, Plus, Trash2, Car, Star } from 'lucide-react';
+
+const DailyWorkModule: React.FC = () => {
+  const { activeShift, startShift, endShift, currentUser } = useAppStore();
+  const [teachingHours, setTeachingHours] = useState<number>(0);
+  const [notes, setNotes] = useState('');
+  const [hasTravel, setHasTravel] = useState(false);
+  const [bonuses, setBonuses] = useState<BonusItem[]>([]);
+  const [newBonus, setNewBonus] = useState({ clientName: '', item: '', amount: '' });
+
+  const handleAddBonus = () => {
+    if (!newBonus.clientName || !newBonus.amount) return;
+    setBonuses([...bonuses, {
+      id: Math.random().toString(36).substr(2, 9),
+      clientName: newBonus.clientName,
+      item: newBonus.item,
+      amount: Number(newBonus.amount)
+    }]);
+    setNewBonus({ clientName: '', item: '', amount: '' });
+  };
+
+  const handleClockOut = () => {
+    if (!activeShift) return;
+    endShift({ 
+      teachingHours, 
+      notes, 
+      hasTravel, 
+      bonuses 
+    });
+    setTeachingHours(0);
+    setNotes('');
+    setHasTravel(false);
+    setBonuses([]);
+  };
+
+  return (
+    <div className="space-y-8 max-w-4xl mx-auto px-1 animate-fade-in" dir="rtl">
+      <div className="brand-gradient rounded-[3rem] p-10 text-white relative shadow-2xl overflow-hidden">
+        <div className="relative z-10">
+           <h2 className="text-4xl md:text-5xl font-black tracking-tight">יום עבודה פעיל</h2>
+           <p className="text-white/70 font-bold uppercase tracking-widest text-xs mt-2">דיווח שעות, הדרכות ובונוסים בזמן אמת</p>
+           
+           <div className="flex flex-col sm:flex-row gap-4 mt-8">
+             {!activeShift ? (
+               <button onClick={startShift} className="bg-white text-brand-ocean px-10 py-5 rounded-2xl font-black shadow-xl flex items-center justify-center gap-3 hover:bg-slate-50 transition-all active:scale-95">
+                 <Clock size={24} strokeWidth={3} /> פתח שעון נוכחות
+               </button>
+             ) : (
+               <div className="bg-emerald-400/20 border border-emerald-400/30 text-emerald-100 px-6 py-4 rounded-2xl flex items-center gap-4 backdrop-blur-md">
+                  <div className="w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping" />
+                  <span className="font-black text-lg">משמרת פעילה מ-{activeShift.startTime}</span>
+               </div>
+             )}
+           </div>
+        </div>
+      </div>
+
+      {activeShift && (
+        <div className="space-y-8 pb-20">
+           <section className="bg-white p-10 rounded-[3rem] border-2 border-slate-100 shadow-xl space-y-6">
+              <h3 className="text-xl font-black text-slate-900 flex items-center gap-3 flex-row-reverse">
+                 <Star className="text-brand" /> שעות הדרכה בפועל
+              </h3>
+              <div className="flex items-center justify-between bg-slate-50 p-6 rounded-3xl border-2 border-slate-100 shadow-inner">
+                 <button onClick={() => setTeachingHours(Math.max(0, teachingHours - 0.25))} className="w-16 h-16 bg-white rounded-2xl shadow-md font-black text-2xl hover:bg-slate-50 border border-slate-100 active:scale-90 transition-all">—</button>
+                 <div className="flex flex-col items-center">
+                    <span className="text-6xl font-black text-slate-900 tabular-nums">{teachingHours.toFixed(2)}</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">שעות הדרכה</span>
+                 </div>
+                 <button onClick={() => setTeachingHours(teachingHours + 0.25)} className="w-16 h-16 bg-white rounded-2xl shadow-md font-black text-2xl hover:bg-slate-50 border border-slate-100 active:scale-90 transition-all">+</button>
+              </div>
+           </section>
+
+           <section className="bg-white p-10 rounded-[3rem] border-2 border-slate-100 shadow-xl space-y-8">
+              <div className="flex flex-col md:flex-row gap-8">
+                 <div className="flex-1 space-y-4">
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mr-2">הערות למנהל</label>
+                    <textarea 
+                      className="w-full p-6 bg-slate-50 border-2 border-slate-100 rounded-[2rem] font-bold text-right shadow-inner min-h-[120px] outline-none focus:border-brand" 
+                      placeholder="פרט כאן הערות מיוחדות לגבי היום..." 
+                      value={notes} 
+                      onChange={e => setNotes(e.target.value)}
+                    />
+                 </div>
+                 <div className="w-full md:w-64 space-y-4">
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mr-2">תשלום נסיעות</label>
+                    <button 
+                      onClick={() => setHasTravel(!hasTravel)}
+                      className={`w-full flex items-center justify-between p-6 rounded-[2rem] border-4 transition-all ${hasTravel ? 'bg-indigo-600 border-indigo-700 text-white shadow-lg' : 'bg-slate-50 border-slate-200 text-slate-400'}`}
+                    >
+                       <span className="font-black text-lg">תשלום נסיעות</span>
+                       <Car size={24} className={hasTravel ? 'text-white' : 'text-slate-300'} />
+                    </button>
+                 </div>
+              </div>
+
+              <button 
+                onClick={handleClockOut} 
+                className="w-full bg-rose-600 text-white py-8 rounded-[2.5rem] font-black text-2xl uppercase tracking-[0.1em] shadow-2xl hover:bg-rose-700 transition-all active:scale-95 flex items-center justify-center gap-4"
+              >
+                <LogOut size={32} /> סיום משמרת ודיווח
+              </button>
+           </section>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default DailyWorkModule;

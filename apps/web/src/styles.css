@@ -1,22 +1,119 @@
 @import "tailwindcss";
 
 @theme {
-  --color-flow-mint: #daf7f1;
-  --color-flow-deep: #0f3d3e;
-  --color-flow-sand: #f9f6ef;
+  --color-brand: #00a9b7;
+  --color-brand-dark: #007a85;
+  --color-brand-light: #e6f6f7;
+  --color-brand-ocean: #00425a;
   --font-sans: "Assistant", sans-serif;
 }
 
 @layer base {
-  html,
-  body,
-  #root {
-    min-height: 100%;
+  html {
+    background-color: #f0f7f8;
+    color: #1e293b;
   }
 
   body {
-    margin: 0;
     font-family: var(--font-sans);
-    background: #eef4f4;
+    background-color: #f0f7f8;
+    font-size: 1rem;
+    line-height: 1.5;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: contain;
+    color: #1e293b;
+  }
+
+  * {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  button {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  button:active {
+    transform: scale(0.96);
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+    max-width: 100%;
+  }
+}
+
+@layer components {
+  .brand-gradient {
+    background: linear-gradient(135deg, #00a9b7 0%, #00425a 100%);
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .scroll-hint {
+    position: relative;
+  }
+
+  .scroll-hint::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 20px;
+    background: linear-gradient(to right, rgba(0, 0, 0, 0.05), transparent);
+    pointer-events: none;
+    opacity: 0;
+  }
+}
+
+@layer utilities {
+  .grid {
+    direction: rtl;
+  }
+
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #00a9b7 transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #00a9b7;
+    border-radius: 10px;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .scroll-hint::after {
+    opacity: 1;
   }
 }

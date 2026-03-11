@@ -47,6 +47,15 @@ This repo is being migrated to a shared web + Capacitor architecture:
 
 The current root Vite app remains as the legacy client during migration.
 
+## Vercel Deployment
+
+Vercel deployment is set up as two separate projects from the same repo:
+
+- web: `apps/web`
+- api: `apps/api`
+
+See [docs/vercel-deploy.md](docs/vercel-deploy.md) for the exact settings.
+
 ## Docker (Frontend + Backend + Postgres)
 
 Run all services locally with Docker Compose:
@@ -65,3 +74,12 @@ Stop services:
 If you also want to remove database volume data:
 
 - `docker compose down -v`
+
+## TODO
+[ ] random refrshes
+[ ] lessons, creating event, creating a task - gives bad request
+[ ] in rentals - it shows paid even when it is not
+[ ] events doesnt show the people in primary operator.
+[ ] make the tables in payrollopenable and closed
+[ ] in knowledge page, it doesnt really upload anything
+[ ] maintenance page necesery?
