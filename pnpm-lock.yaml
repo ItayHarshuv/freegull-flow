@@ -60,9 +60,15 @@ importers:
       '@hono/node-server':
         specifier: ^1.14.4
         version: 1.19.11(hono@4.12.5)
+      dotenv:
+        specifier: ^17.3.1
+        version: 17.3.1
       hono:
         specifier: ^4.7.5
         version: 4.12.5
+      pg:
+        specifier: ^8.18.0
+        version: 8.20.0
       zod:
         specifier: ^4.3.6
         version: 4.3.6

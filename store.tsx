@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { AppState, User, Shift, Lesson, Rental, Task, Availability, ConfirmedShift, WhatsAppTemplate, KnowledgeFile, SeaEvent, Lead, ClubSettings } from './types';
 
-const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:4000';
+const API_BASE_URL = ((import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:4000').replace(/\/+$/, '');
 const SYNC_INTERVAL_MS = 5000;
 
 const INITIAL_CLUB_SETTINGS: ClubSettings = {
