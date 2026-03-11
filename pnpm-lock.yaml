@@ -51,9 +51,6 @@ importers:
 
   apps/api:
     dependencies:
-      '@freegull-flow/contracts':
-        specifier: workspace:*
-        version: link:../../packages/contracts
       '@freegull-flow/db':
         specifier: workspace:*
         version: link:../../packages/db

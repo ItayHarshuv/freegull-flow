@@ -2,7 +2,6 @@ import crypto from 'node:crypto';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { dashboardSummarySchema, lessonListItemSchema, listParamsSchema, userProfileSchema } from '@freegull-flow/contracts';
 import { z } from 'zod';
 
 const AUTH_COOKIE_NAME = 'freegull_session';
@@ -32,6 +31,34 @@ const loginBodySchema = z.object({
 });
 const meQuerySchema = z.object({
   clubId: z.string().min(1).optional(),
+});
+const demoDashboardSummarySchema = z.object({
+  activeUsers: z.number().int().nonnegative(),
+  scheduledLessons: z.number().int().nonnegative(),
+  openTasks: z.number().int().nonnegative(),
+  openLeads: z.number().int().nonnegative(),
+});
+const demoUserProfileSchema = z.object({
+  id: z.string().min(1),
+  clubId: z.string().min(1),
+  name: z.string().min(1),
+  email: z.string().email(),
+  role: z.string().min(1),
+  createdAt: z.string().min(1),
+  updatedAt: z.string().min(1),
+});
+const demoListParamsSchema = z.object({
+  cursor: z.string().min(1).optional(),
+  limit: z.number().int().positive().max(100).optional(),
+  sort: z.string().min(1).optional(),
+});
+const demoLessonListItemSchema = z.object({
+  id: z.string().min(1),
+  clientName: z.string().min(1),
+  date: z.string().min(1),
+  time: z.string().min(1),
+  instructorName: z.string().min(1),
+  status: z.string().min(1),
 });
 
 type AuthContext = {
@@ -93,11 +120,12 @@ function hashSessionToken(token: string) {
 
 function buildCookieOptions() {
   const isProduction = process.env.NODE_ENV === 'production';
+  const isCrossSite = isProduction || process.env.AUTH_COOKIE_CROSS_SITE === 'true';
 
   return {
     httpOnly: true,
-    sameSite: 'Lax' as const,
-    secure: isProduction,
+    sameSite: isCrossSite ? ('None' as const) : ('Lax' as const),
+    secure: isCrossSite,
     maxAge: SESSION_TTL_MS / 1000,
     path: '/',
   };
@@ -356,7 +384,7 @@ app.put('/state/:clubId', requireAuth, async (c) => {
 });
 
 app.get('/api/v1/clubs/:clubId/dashboard', (c) => {
-  const payload = dashboardSummarySchema.parse({
+  const payload = demoDashboardSummarySchema.parse({
     activeUsers: 18,
     scheduledLessons: 24,
     openTasks: 6,
@@ -368,7 +396,7 @@ app.get('/api/v1/clubs/:clubId/dashboard', (c) => {
 
 app.get('/api/v1/clubs/:clubId/users', (c) => {
   const users = [
-    userProfileSchema.parse({
+    demoUserProfileSchema.parse({
       id: 'user_1',
       clubId: c.req.param('clubId'),
       name: 'שחר',
@@ -383,14 +411,14 @@ app.get('/api/v1/clubs/:clubId/users', (c) => {
 });
 
 app.get('/api/v1/clubs/:clubId/lessons', (c) => {
-  const query = listParamsSchema.parse({
+  const query = demoListParamsSchema.parse({
     cursor: c.req.query('cursor') ?? undefined,
     limit: c.req.query('limit') ? Number(c.req.query('limit')) : undefined,
     sort: c.req.query('sort') ?? undefined,
   });
 
   const items = [
-    lessonListItemSchema.parse({
+    demoLessonListItemSchema.parse({
       id: 'lesson_1',
       clientName: 'עומר ישראלי',
       date: '2026-03-09',
