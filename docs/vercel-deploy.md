@@ -35,9 +35,9 @@ Vercel documents this requirement for monorepos with shared packages.
 ## Project 2: API
 
 - Root Directory: `apps/api`
-- Framework Preset: `Other`
+- Framework Preset: `Hono` if shown, otherwise `Other` with auto-detection enabled
 - Install Command: leave auto-detected, or set `corepack pnpm install --frozen-lockfile`
-- Build Command: leave empty unless you want `corepack pnpm build`
+- Build Command: leave empty
 - Output Directory: leave empty
 - Node.js Version: `20.x`
 
@@ -48,7 +48,17 @@ Vercel documents this requirement for monorepos with shared packages.
 
 ### Hono Entrypoint
 
-`apps/api/src/index.ts` exports the Hono app as the default export so Vercel can deploy it directly.
+This API is deployed with Hono's normal Vercel entrypoint:
+
+- `apps/api/src/index.ts`
+
+Vercel should serve the Hono app directly from the project root, so routes like `/auth/me`, `/state/:clubId`, and `/health` are handled without an extra `api/` wrapper or rewrite.
+
+### Required Vercel Project Setting
+
+Because this API imports files outside `apps/api`:
+
+- enable `Include source files outside of the Root Directory in the Build Step`
 
 ## Recommended Deployment Order
 
@@ -56,6 +66,15 @@ Vercel documents this requirement for monorepos with shared packages.
 2. Copy the API production URL
 3. Set `VITE_API_BASE_URL` on `freegull-web`
 4. Deploy `freegull-web`
+
+## Quick Verification
+
+After deploying the API project, check these before connecting the web app:
+
+- `https://<api-domain>/health` returns JSON
+- `https://<api-domain>/auth/me?clubId=FREEGULL_MAIN` returns a JSON `401` when called without a session
+
+If either URL returns a Vercel `NOT_FOUND` page, the project is not serving the Hono app yet. In that case, confirm the API project root directory is `apps/api` and redeploy.
 
 ## CLI Option
 

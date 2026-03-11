@@ -54,6 +54,8 @@ Vercel deployment is set up as two separate projects from the same repo:
 - web: `apps/web`
 - api: `apps/api`
 
+The API project should be deployed as a Hono app from `apps/api/src/index.ts`.
+
 See [docs/vercel-deploy.md](docs/vercel-deploy.md) for the exact settings.
 
 ## Docker (Frontend + Backend + Postgres)

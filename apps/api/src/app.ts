@@ -3,14 +3,6 @@ import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { dashboardSummarySchema, lessonListItemSchema, listParamsSchema, userProfileSchema } from '@freegull-flow/contracts';
-import {
-  readState,
-  readStateVersion,
-  readStateWithVersion,
-  StateVersionConflictError,
-  writeState,
-} from '../../../backend/src/stateRepository.js';
-import { pool } from '../../../backend/src/db.js';
 import { z } from 'zod';
 
 const AUTH_COOKIE_NAME = 'freegull_session';
@@ -48,7 +40,15 @@ type AuthContext = {
   token: string;
 };
 
+type LegacyDbModule = typeof import('../../../backend/src/db.js');
+type LegacyStateRepositoryModule = typeof import('../../../backend/src/stateRepository.js');
+
 const app = new Hono<{ Variables: { auth: AuthContext } }>();
+
+app.onError((error, c) => {
+  console.error(error);
+  return c.json({ error: 'Internal Server Error' }, 500);
+});
 
 app.use(
   '*',
@@ -62,6 +62,30 @@ app.use(
 );
 
 app.get('/health', (c) => c.json({ ok: true }));
+
+let legacyDbModulePromise: Promise<LegacyDbModule> | null = null;
+let legacyStateRepositoryPromise: Promise<LegacyStateRepositoryModule> | null = null;
+
+function getLegacyDbModule() {
+  if (!legacyDbModulePromise) {
+    legacyDbModulePromise = import('../../../backend/src/db.js');
+  }
+
+  return legacyDbModulePromise;
+}
+
+function getLegacyStateRepositoryModule() {
+  if (!legacyStateRepositoryPromise) {
+    legacyStateRepositoryPromise = import('../../../backend/src/stateRepository.js');
+  }
+
+  return legacyStateRepositoryPromise;
+}
+
+async function getPool() {
+  const module = await getLegacyDbModule();
+  return module.pool;
+}
 
 function hashSessionToken(token: string) {
   return crypto.createHash('sha256').update(token).digest('hex');
@@ -103,6 +127,7 @@ function mapUserRow(row: Record<string, any>) {
 
 async function readUserByIdentifier(clubId: string, identifier: string) {
   const normalizedIdentifier = identifier.trim();
+  const pool = await getPool();
   const res = await pool.query(
     `
       SELECT
@@ -127,6 +152,7 @@ async function readUserByIdentifier(clubId: string, identifier: string) {
 }
 
 async function readUserById(clubId: string, userId: string) {
+  const pool = await getPool();
   const res = await pool.query(
     `
       SELECT
@@ -151,6 +177,7 @@ async function createSession(clubId: string, userId: string, userAgent: string |
   const sessionToken = crypto.randomBytes(48).toString('base64url');
   const tokenHash = hashSessionToken(sessionToken);
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
+  const pool = await getPool();
 
   await pool.query(
     `
@@ -167,6 +194,7 @@ async function createSession(clubId: string, userId: string, userAgent: string |
 
 async function readSessionFromToken(sessionToken: string) {
   const tokenHash = hashSessionToken(sessionToken);
+  const pool = await getPool();
   const res = await pool.query(
     `
       SELECT token_hash, club_id, user_id, expires_at
@@ -184,6 +212,7 @@ async function readSessionFromToken(sessionToken: string) {
 
 async function revokeSession(sessionToken: string) {
   const tokenHash = hashSessionToken(sessionToken);
+  const pool = await getPool();
 
   await pool.query(
     `
@@ -213,6 +242,7 @@ async function requireAuth(c: any, next: any) {
     token: sessionToken,
   } satisfies AuthContext);
 
+  const pool = await getPool();
   await pool.query(
     `
       UPDATE auth_sessions
@@ -281,6 +311,7 @@ app.get('/state/:clubId', requireAuth, async (c) => {
   const denied = enforceClubAccess(c, clubId);
   if (denied) return denied;
 
+  const { readStateWithVersion } = await getLegacyStateRepositoryModule();
   const { state, version } = await readStateWithVersion(clubId);
   return c.json({ ...state, serverVersion: version });
 });
@@ -290,6 +321,7 @@ app.get('/state/:clubId/version', requireAuth, async (c) => {
   const denied = enforceClubAccess(c, clubId);
   if (denied) return denied;
 
+  const { readStateVersion } = await getLegacyStateRepositoryModule();
   const version = await readStateVersion(clubId);
   return c.json({ serverVersion: version });
 });
@@ -300,6 +332,7 @@ app.put('/state/:clubId', requireAuth, async (c) => {
   if (denied) return denied;
 
   const parsed = stateSchema.parse(await c.req.json());
+  const { StateVersionConflictError, readStateWithVersion, writeState } = await getLegacyStateRepositoryModule();
 
   try {
     await writeState(clubId, parsed.state, parsed.expectedVersion);
