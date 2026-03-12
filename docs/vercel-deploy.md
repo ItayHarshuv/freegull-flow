@@ -27,6 +27,7 @@ Vercel documents this requirement for monorepos with shared packages.
 ### Environment Variables
 
 - `VITE_API_BASE_URL=https://<your-api-project>.vercel.app`
+- For Preview deploys, this can point at the API preview URL or a stable staging API URL.
 
 ### Routing
 
@@ -44,7 +45,12 @@ Vercel documents this requirement for monorepos with shared packages.
 ### Environment Variables
 
 - `DATABASE_URL=...`
+- `FRONTEND_ORIGIN=https://<your-web-project>.vercel.app`
+- `ALLOW_EMAIL_LOGIN=true` if email login should be enabled
+- `AUTH_COOKIE_CROSS_SITE=true` if you need cross-site auth cookies outside normal production detection
 - Add any future auth/session secrets before enabling login flows in production.
+
+If `FRONTEND_ORIGIN` is set to a Vercel web URL such as `https://freegull-flow-web.vercel.app`, the API also accepts preview deploy URLs for that same web project automatically.
 
 ### Hono Entrypoint
 

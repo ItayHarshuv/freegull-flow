@@ -31,10 +31,65 @@ const allowedOrigins = (process.env.FRONTEND_ORIGIN || defaultFrontendOrigins)
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
+const allowedOriginSet = new Set(
+  allowedOrigins
+    .map((origin) => {
+      try {
+        return new URL(origin).origin;
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean)
+);
+const vercelPreviewPrefixes = allowedOrigins
+  .map((origin) => {
+    try {
+      const url = new URL(origin);
+      if (url.protocol !== "https:" || !url.hostname.endsWith(".vercel.app")) {
+        return null;
+      }
+
+      return url.hostname.slice(0, -".vercel.app".length);
+    } catch {
+      return null;
+    }
+  })
+  .filter(Boolean);
+
+function isAllowedOrigin(origin) {
+  let url;
+
+  try {
+    url = new URL(origin);
+  } catch {
+    return false;
+  }
+
+  if (allowedOriginSet.has(url.origin)) {
+    return true;
+  }
+
+  if (url.protocol !== "https:" || !url.hostname.endsWith(".vercel.app")) {
+    return false;
+  }
+
+  const candidatePrefix = url.hostname.slice(0, -".vercel.app".length);
+  return vercelPreviewPrefixes.some(
+    (prefix) => candidatePrefix === prefix || candidatePrefix.startsWith(`${prefix}-`)
+  );
+}
 
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin(origin, callback) {
+      if (!origin || isAllowedOrigin(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(null, false);
+    },
     credentials: true,
   })
 );

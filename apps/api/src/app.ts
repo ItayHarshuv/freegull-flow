@@ -14,11 +14,60 @@ const defaultFrontendOrigins = [
   'http://127.0.0.1:3001',
   'http://localhost:4173',
   'http://127.0.0.1:4173',
+  'https://freegull-flow-web-itayharshuv-itay-har-shuvs-projects.vercel.app',
 ].join(',');
 const allowedOrigins = (process.env.FRONTEND_ORIGIN || defaultFrontendOrigins)
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
+const allowedOriginSet = new Set(
+  allowedOrigins
+    .map((origin) => {
+      try {
+        return new URL(origin).origin;
+      } catch {
+        return null;
+      }
+    })
+    .filter((origin): origin is string => Boolean(origin))
+);
+const vercelPreviewPrefixes = allowedOrigins
+  .map((origin) => {
+    try {
+      const url = new URL(origin);
+      if (url.protocol !== 'https:' || !url.hostname.endsWith('.vercel.app')) {
+        return null;
+      }
+
+      return url.hostname.slice(0, -'.vercel.app'.length);
+    } catch {
+      return null;
+    }
+  })
+  .filter((prefix): prefix is string => Boolean(prefix));
+
+function isAllowedOrigin(origin: string) {
+  let url: URL;
+
+  try {
+    url = new URL(origin);
+  } catch {
+    return false;
+  }
+
+  if (allowedOriginSet.has(url.origin)) {
+    return true;
+  }
+
+  if (url.protocol !== 'https:' || !url.hostname.endsWith('.vercel.app')) {
+    return false;
+  }
+
+  const candidatePrefix = url.hostname.slice(0, -'.vercel.app'.length);
+  return vercelPreviewPrefixes.some(
+    (prefix) => candidatePrefix === prefix || candidatePrefix.startsWith(`${prefix}-`)
+  );
+}
 
 const clubIdSchema = z.object({ clubId: z.string().min(1) });
 const stateSchema = z.object({
@@ -82,7 +131,7 @@ app.use(
   cors({
     origin: (origin) => {
       if (!origin) return '';
-      return allowedOrigins.includes(origin) ? origin : '';
+      return isAllowedOrigin(origin) ? origin : '';
     },
     credentials: true,
   })
