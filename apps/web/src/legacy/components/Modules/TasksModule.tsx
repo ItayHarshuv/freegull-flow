@@ -126,13 +126,13 @@ const TasksModule: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 md:space-y-8 pb-24 max-w-6xl mx-auto text-right px-2" dir="rtl">
+    <div className="space-y-6 md:space-y-8 pb-24 max-w-6xl mx-auto text-right px-2 overflow-x-hidden" dir="rtl">
        
        {/* Notification Toast */}
        {notification && (
-         <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[150] bg-slate-900/95 text-white px-8 py-4 rounded-full shadow-2xl flex items-center gap-4 animate-fade-in border border-white/10 backdrop-blur-md">
+         <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[150] max-w-[calc(100vw-1rem)] bg-slate-900/95 text-white px-5 sm:px-8 py-4 rounded-full shadow-2xl flex items-center gap-3 sm:gap-4 animate-fade-in border border-white/10 backdrop-blur-md">
             <CheckCircle size={24} className="text-emerald-400" />
-            <span className="font-bold text-sm tracking-tight">{notification}</span>
+            <span className="font-bold text-sm tracking-tight truncate">{notification}</span>
          </div>
        )}
 
@@ -242,25 +242,28 @@ const TasksModule: React.FC = () => {
        )}
 
        {/* Toolbar & Filter */}
-       <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-white p-3 rounded-[2rem] border border-slate-100 shadow-sm mx-1">
-          <div className="bg-slate-100 p-1.5 rounded-2xl flex w-full md:w-auto">
+       <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-white p-3 rounded-[2rem] border border-slate-100 shadow-sm">
+          <div className="bg-slate-100 p-1.5 rounded-2xl flex flex-col xs:flex-row w-full md:w-auto">
              <button 
                onClick={() => setActiveTab('open')} 
-               className={`flex-1 md:flex-none px-6 py-3 md:py-2.5 rounded-xl text-xs font-black transition-all ${activeTab === 'open' ? 'bg-white shadow-sm text-brand-ocean' : 'text-slate-400 hover:text-slate-600'}`}
+               className={`flex-1 md:flex-none px-4 sm:px-6 py-3 md:py-2.5 rounded-xl text-xs font-black transition-all ${activeTab === 'open' ? 'bg-white shadow-sm text-brand-ocean' : 'text-slate-400 hover:text-slate-600'}`}
              >
                 משימות פתוחות
              </button>
              <button 
                onClick={() => setActiveTab('archive')} 
-               className={`flex-1 md:flex-none px-6 py-3 md:py-2.5 rounded-xl text-xs font-black transition-all ${activeTab === 'archive' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
+               className={`flex-1 md:flex-none px-4 sm:px-6 py-3 md:py-2.5 rounded-xl text-xs font-black transition-all ${activeTab === 'archive' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
              >
                 ארכיון ובוצע
              </button>
           </div>
 
-          <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 scroll-hint">
-             <Filter size={14} className="text-slate-400 shrink-0" />
-             <select className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-3 px-3 rounded-xl outline-none" value={filterType} onChange={e => setFilterType(e.target.value as any)}>
+          <div className="grid grid-cols-1 xs:grid-cols-2 md:flex items-center gap-2 w-full md:w-auto min-w-0">
+             <div className="flex items-center gap-2 xs:col-span-2 md:col-auto">
+               <Filter size={14} className="text-slate-400 shrink-0" />
+               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 md:hidden">סינון</span>
+             </div>
+             <select className="w-full md:w-auto bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-3 px-3 rounded-xl outline-none min-w-0" value={filterType} onChange={e => setFilterType(e.target.value as any)}>
                <option value="All">כל הסוגים</option>
                <option value="General">כללי</option>
                <option value="Return to Client">חזרה ללקוח</option>
@@ -268,13 +271,13 @@ const TasksModule: React.FC = () => {
                <option value="Price Quote">הצעת מחיר</option>
                <option value="Order">הזמנות</option>
              </select>
-             <select className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-3 px-3 rounded-xl outline-none" value={filterPriority} onChange={e => setFilterPriority(e.target.value as any)}>
+             <select className="w-full md:w-auto bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-3 px-3 rounded-xl outline-none min-w-0" value={filterPriority} onChange={e => setFilterPriority(e.target.value as any)}>
                <option value="All">כל הדחיפויות</option>
                <option value="High">דחוף</option>
                <option value="Medium">בינוני</option>
                <option value="Normal">רגיל</option>
              </select>
-             <select className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-3 px-3 rounded-xl outline-none min-w-[100px]" value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)}>
+             <select className="w-full xs:col-span-2 md:w-auto bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold py-3 px-3 rounded-xl outline-none min-w-0 md:min-w-[100px]" value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)}>
                <option value="All">כל העובדים</option>
                {sortedUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
              </select>
@@ -293,10 +296,10 @@ const TasksModule: React.FC = () => {
                const canEdit = canUpdateStatus(task);
                const creatorName = users.find(user => user.id === task.createdBy)?.name || task.createdBy;
                return (
-                 <div key={task.id} className={`bg-white p-4 md:p-8 rounded-[2rem] border transition-all flex flex-col md:flex-row gap-6 hover:shadow-lg ${task.status === 'Done' ? 'border-slate-100 opacity-80' : 'border-slate-200 shadow-sm'}`}>
+                 <div key={task.id} className={`bg-white p-4 md:p-8 rounded-[2rem] border transition-all flex flex-col md:flex-row gap-6 hover:shadow-lg overflow-hidden ${task.status === 'Done' ? 'border-slate-100 opacity-80' : 'border-slate-200 shadow-sm'}`}>
                     
                     {/* Checkbox / Status */}
-                    <div className="flex items-center justify-between md:flex-col md:justify-center gap-4 md:w-20 shrink-0 border-b md:border-b-0 md:border-l border-slate-100 pb-4 md:pb-0 md:pl-6 w-full md:w-auto">
+                    <div className="flex flex-wrap items-center justify-between md:flex-col md:justify-center gap-4 md:w-20 shrink-0 border-b md:border-b-0 md:border-l border-slate-100 pb-4 md:pb-0 md:pl-6 w-full md:w-auto">
                        <div className="flex items-center gap-3 md:hidden">
                           <div className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${task.priority === 'High' ? 'bg-rose-50 text-rose-600' : 'bg-slate-100 text-slate-500'}`}>
                              {task.priority === 'High' ? 'דחוף' : task.priority === 'Medium' ? 'בינוני' : 'רגיל'}
@@ -321,7 +324,7 @@ const TasksModule: React.FC = () => {
 
                     {/* Task Info */}
                     <div className="flex-1 space-y-3 min-w-0">
-                       <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                       <div className="flex flex-wrap items-center gap-2 md:gap-3 min-w-0">
                           <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-2 border ${
                              task.type === 'Inventory' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 
                              task.type === 'Return to Client' ? 'bg-blue-50 text-blue-700 border-blue-100' :
@@ -343,33 +346,33 @@ const TasksModule: React.FC = () => {
                        
                        {(task.clientName || task.clientPhone) && (
                           <div className="bg-slate-50 p-3 rounded-xl inline-block border border-slate-100 w-full md:w-auto max-w-full">
-                             <div className="flex flex-wrap items-center gap-4 text-xs font-bold text-slate-600">
-                                {task.clientName && <span className="flex items-center gap-1.5 min-w-0"><User size={14} className="shrink-0"/> <span className="truncate">{task.clientName}</span></span>}
-                                {task.clientPhone && <a href={`tel:${task.clientPhone}`} className="flex items-center gap-1.5 hover:text-blue-600 min-w-0"><Phone size={14} className="shrink-0"/> <span className="truncate">{task.clientPhone}</span></a>}
+                             <div className="flex flex-col xs:flex-row flex-wrap items-start xs:items-center gap-3 xs:gap-4 text-xs font-bold text-slate-600 min-w-0">
+                                {task.clientName && <span className="flex items-center gap-1.5 min-w-0 max-w-full"><User size={14} className="shrink-0"/> <span className="truncate">{task.clientName}</span></span>}
+                                {task.clientPhone && <a href={`tel:${task.clientPhone}`} className="flex items-center gap-1.5 hover:text-blue-600 min-w-0 max-w-full"><Phone size={14} className="shrink-0"/> <span className="truncate">{task.clientPhone}</span></a>}
                              </div>
                           </div>
                        )}
 
-                       <div className="flex flex-wrap items-center gap-3 pt-2">
-                          <div className="flex -space-x-2 space-x-reverse overflow-hidden">
+                       <div className="flex flex-col xs:flex-row xs:items-center gap-3 pt-2 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2 min-w-0">
                              {task.assignedTo.length > 0 ? task.assignedTo.map(uid => {
                                 const u = users.find(user => user.id === uid);
                                 if (!u) return null;
                                 return (
-                                   <div key={uid} title={u.name} className="w-8 h-8 rounded-full border-2 border-white bg-slate-200 flex items-center justify-center text-[10px] font-black text-slate-600">
+                                   <div key={uid} title={u.name} className="w-8 h-8 rounded-full border-2 border-white bg-slate-200 flex items-center justify-center text-[10px] font-black text-slate-600 shrink-0">
                                       {u.avatar ? <img src={u.avatar} className="w-full h-full rounded-full object-cover" alt={u.name}/> : u.name.charAt(0)}
                                    </div>
                                 )
                              }) : <span className="text-xs text-slate-400 italic">לא שויך</span>}
                           </div>
-                          <span className="text-[10px] text-slate-400 font-bold">נוצר ע"י {creatorName}</span>
+                          <span className="text-[10px] text-slate-400 font-bold break-words">נוצר ע"י {creatorName}</span>
                        </div>
                     </div>
 
                     {/* Actions */}
                     {activeTab === 'open' && isManager && task.assignedTo.length > 0 && (
                       <div className="flex items-center md:flex-col justify-end gap-2 border-t md:border-t-0 md:border-r border-slate-100 pt-4 md:pt-0 md:pr-6">
-                         <button onClick={() => sendEmailNotification(task)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-all shadow-sm border border-slate-200" title="שלח תזכורת במייל">
+                         <button onClick={() => sendEmailNotification(task)} className="w-full md:w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-all shadow-sm border border-slate-200" title="שלח תזכורת במייל">
                             <Mail size={18} />
                          </button>
                       </div>

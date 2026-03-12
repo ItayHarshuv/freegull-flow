@@ -87,7 +87,7 @@ const LeadsModule: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8 md:space-y-10 max-w-7xl mx-auto pb-24 text-right px-2" dir="rtl">
+    <div className="space-y-8 md:space-y-10 max-w-7xl mx-auto pb-24 text-right px-2 overflow-x-hidden" dir="rtl">
        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6 border-b border-slate-200 pb-8">
           <div>
             <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-none">ניהול לידים</h2>
@@ -100,31 +100,31 @@ const LeadsModule: React.FC = () => {
 
        {/* Quick Action Cards */}
        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-          <a href="https://web.whatsapp.com/" target="_blank" rel="noopener noreferrer" className="bg-[#25D366] text-white p-6 md:p-8 rounded-[2rem] shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1 flex items-center justify-between group overflow-hidden relative">
-             <div className="relative z-10">
-                <h3 className="text-2xl font-black mb-1">WhatsApp Web</h3>
+          <a href="https://web.whatsapp.com/" target="_blank" rel="noopener noreferrer" className="bg-[#25D366] text-white p-6 md:p-8 rounded-[2rem] shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1 flex flex-col xs:flex-row items-start xs:items-center justify-between gap-4 group overflow-hidden relative min-w-0">
+             <div className="relative z-10 min-w-0">
+                <h3 className="text-xl md:text-2xl font-black mb-1 break-words">WhatsApp Web</h3>
                 <p className="text-xs font-bold opacity-90 uppercase tracking-widest">פתיחת ממשק הודעות</p>
              </div>
-             <MessageCircle size={40} className="text-white relative z-10" />
+             <MessageCircle size={36} className="text-white relative z-10 shrink-0" />
              <div className="absolute -right-6 -bottom-6 bg-white/20 w-32 h-32 rounded-full group-hover:scale-150 transition-transform duration-500" />
           </a>
           
-          <a href="https://mail.google.com/" target="_blank" rel="noopener noreferrer" className="bg-white border border-slate-200 text-slate-900 p-6 md:p-8 rounded-[2rem] shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1 flex items-center justify-between group overflow-hidden relative">
-             <div className="relative z-10">
-                <h3 className="text-2xl font-black mb-1">Gmail / Email</h3>
+          <a href="https://mail.google.com/" target="_blank" rel="noopener noreferrer" className="bg-white border border-slate-200 text-slate-900 p-6 md:p-8 rounded-[2rem] shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1 flex flex-col xs:flex-row items-start xs:items-center justify-between gap-4 group overflow-hidden relative min-w-0">
+             <div className="relative z-10 min-w-0">
+                <h3 className="text-xl md:text-2xl font-black mb-1 break-words">Gmail / Email</h3>
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">בדיקת פניות במייל</p>
              </div>
-             <Mail size={40} className="text-slate-300 group-hover:text-rose-500 transition-colors relative z-10" />
+             <Mail size={36} className="text-slate-300 group-hover:text-rose-500 transition-colors relative z-10 shrink-0" />
           </a>
        </div>
 
        {/* Filters */}
-       <div className="bg-white p-2 rounded-2xl shadow-sm border border-slate-200 flex w-full overflow-x-auto scroll-hint">
+       <div className="bg-white p-2 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap w-full gap-2">
           {(['All', 'New', 'In Progress', 'Converted', 'Lost'] as const).map(status => (
              <button
                 key={status}
                 onClick={() => setActiveStatus(status)}
-                className={`px-6 py-3 rounded-xl text-xs font-black transition-all whitespace-nowrap shrink-0 ${activeStatus === status ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+                className={`flex-1 min-w-[calc(50%-0.25rem)] xs:min-w-0 xs:flex-none px-4 sm:px-6 py-3 rounded-xl text-xs font-black transition-all whitespace-nowrap ${activeStatus === status ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
              >
                 {status === 'All' ? 'כל הלידים' : statusLabels[status]}
              </button>
@@ -134,7 +134,7 @@ const LeadsModule: React.FC = () => {
        {/* Mobile View: Cards */}
        <div className="block md:hidden space-y-4">
           {filteredLeads.map(lead => (
-             <div key={lead.id} className="bg-white p-4 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden">
+             <div key={lead.id} className="bg-white p-4 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden w-full">
                 <div className={`absolute top-0 right-0 w-2 h-full ${statusColors[lead.status].split(' ')[0]}`} />
                 
                 <div className="flex justify-between items-start mb-4 gap-3 pl-2">
@@ -144,7 +144,7 @@ const LeadsModule: React.FC = () => {
                       </div>
                       <div className="min-w-0 flex-1">
                          <h3 className="text-lg font-black text-slate-900 leading-tight truncate">{lead.name}</h3>
-                         <div className="flex items-center gap-2 mt-1">
+                         <div className="flex flex-wrap items-center gap-2 mt-1">
                             <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-bold uppercase shrink-0">{lead.source}</span>
                             <span className="text-[10px] text-slate-400 font-bold truncate">{new Date(lead.createdAt).toLocaleDateString('he-IL')}</span>
                          </div>
@@ -155,11 +155,11 @@ const LeadsModule: React.FC = () => {
 
                 <div className="space-y-3 mb-4">
                    <div className="flex flex-wrap gap-2">
-                       <a href={`tel:${lead.phone}`} className="flex items-center gap-2 font-bold text-slate-700 hover:text-blue-600 text-sm bg-slate-50 p-2 rounded-xl border border-slate-100 max-w-full">
+                       <a href={`tel:${lead.phone}`} className="flex items-center gap-2 font-bold text-slate-700 hover:text-blue-600 text-sm bg-slate-50 p-2 rounded-xl border border-slate-100 max-w-full w-full xs:w-auto">
                           <Phone size={14} className="text-slate-400 shrink-0"/> <span className="truncate">{lead.phone}</span>
                        </a>
                        {lead.email && (
-                          <div className="flex items-center gap-2 font-bold text-slate-500 text-xs bg-slate-50 p-2 rounded-xl border border-slate-100 max-w-full">
+                          <div className="flex items-center gap-2 font-bold text-slate-500 text-xs bg-slate-50 p-2 rounded-xl border border-slate-100 max-w-full w-full xs:w-auto">
                              <Mail size={14} className="text-slate-400 shrink-0"/> <span className="truncate">{lead.email}</span>
                           </div>
                        )}
@@ -169,7 +169,7 @@ const LeadsModule: React.FC = () => {
                    )}
                 </div>
 
-                <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-50">
                    <span className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${statusColors[lead.status]}`}>
                       {statusLabels[lead.status]}
                    </span>
@@ -256,7 +256,7 @@ const LeadsModule: React.FC = () => {
                      <label className="text-[10px] font-black uppercase text-slate-400 mr-2 tracking-widest">שם מלא</label>
                      <input required className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-right outline-none focus:ring-2 focus:ring-brand" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                      <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase text-slate-400 mr-2 tracking-widest">טלפון</label>
                         <input required inputMode="tel" title={PHONE_VALIDATION_MESSAGE} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-right outline-none focus:ring-2 focus:ring-brand tabular-nums" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
@@ -266,7 +266,7 @@ const LeadsModule: React.FC = () => {
                         <input className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-right outline-none focus:ring-2 focus:ring-brand" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
                      </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                      <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase text-slate-400 mr-2 tracking-widest">מקור הגעה</label>
                         <select className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-right outline-none focus:ring-2 focus:ring-brand appearance-none" value={formData.source} onChange={e => setFormData({...formData, source: e.target.value as LeadSource})}>
