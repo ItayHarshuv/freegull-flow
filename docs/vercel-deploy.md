@@ -26,8 +26,19 @@ Vercel documents this requirement for monorepos with shared packages.
 
 ### Environment Variables
 
-- `VITE_API_BASE_URL=https://<your-api-project>.vercel.app`
-- For Preview deploys, this can point at the API preview URL or a stable staging API URL.
+- `VITE_API_BASE_URL=/api`
+- `VITE_DEV_API_PROXY_TARGET=http://localhost:4000` for local Vite development
+
+### Rewrites
+
+To keep auth first-party in browsers, the web project should proxy API traffic through the web origin.
+
+Set the first rewrite in `apps/web/vercel.json` to your deployed API URL:
+
+- `source`: `/api/:match*`
+- `destination`: `https://<your-api-project>.vercel.app/:match*`
+
+Keep that rewrite above the SPA catch-all rewrite so `/api/*` reaches the API instead of `index.html`.
 
 ### Routing
 
@@ -70,7 +81,7 @@ Because this API imports files outside `apps/api`:
 
 1. Deploy `freegull-api`
 2. Copy the API production URL
-3. Set `VITE_API_BASE_URL` on `freegull-web`
+3. Set `VITE_API_BASE_URL=/api` on `freegull-web`
 4. Deploy `freegull-web`
 
 ## Quick Verification
