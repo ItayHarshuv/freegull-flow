@@ -72,7 +72,7 @@ const AvailabilityModule: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto pb-40 px-2 space-y-12 text-right" dir="rtl">
-       <header className="flex flex-col md:flex-row items-center justify-between gap-8 border-b border-slate-200 pb-10">
+       <header className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 border-b border-slate-200 pb-10">
           <div className="text-right w-full">
             <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight leading-none">הגשת זמינות צוות</h2>
             <p className="text-slate-600 mt-3 font-bold text-lg italic">סמן ימים בהם אתה פנוי לעבודה. ניתן להוסיף הערות גם לימי חופש.</p>
@@ -92,20 +92,20 @@ const AvailabilityModule: React.FC = () => {
                   <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-6 md:gap-10">
                      
                      {/* Date Column */}
-                     <div className="flex items-center gap-6 min-w-[200px]">
+                     <div className="flex items-center gap-4 xs:gap-6 min-w-0">
                         <div className={`w-12 h-12 md:w-16 md:h-16 rounded-[1.5rem] flex items-center justify-center shadow-lg transition-transform group-hover:rotate-3 shrink-0 ${data.isAvailable ? 'brand-gradient text-white' : 'bg-slate-300 text-slate-500'}`}>
                            <Calendar size={24} className="md:w-8 md:h-8" />
                         </div>
-                        <div>
-                           <div className="text-4xl md:text-5xl font-black text-slate-900 leading-none">{date.toLocaleDateString('he-IL', { weekday: 'long' })}</div>
-                           <div className="text-lg md:text-xl font-black text-brand-dark uppercase mt-2 tracking-widest tabular-nums">{date.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}</div>
+                        <div className="min-w-0">
+                           <div className="text-2xl xs:text-3xl md:text-5xl font-black text-slate-900 leading-none break-words">{date.toLocaleDateString('he-IL', { weekday: 'long' })}</div>
+                           <div className="text-base xs:text-lg md:text-xl font-black text-brand-dark uppercase mt-2 tracking-widest tabular-nums">{date.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}</div>
                         </div>
                      </div>
 
                      {/* Controls Column */}
                      <div className="flex-1 flex flex-col gap-4">
                         <div className="flex flex-col md:flex-row gap-4 items-center">
-                           <label className="flex items-center gap-4 cursor-pointer p-4 bg-white rounded-2xl shadow-inner border border-slate-100 min-w-[160px] w-full md:w-auto justify-between md:justify-start">
+                           <label className="flex items-center gap-4 cursor-pointer p-4 bg-white rounded-2xl shadow-inner border border-slate-100 sm:min-w-[160px] w-full md:w-auto justify-between md:justify-start">
                               <span className={`font-black text-2xl ${data.isAvailable ? 'text-slate-900' : 'text-slate-400'}`}>{data.isAvailable ? 'אני זמין' : 'לא פנוי'}</span>
                               <input type="checkbox" checked={data.isAvailable} onChange={e => handleChange(dateStr, { isAvailable: e.target.checked })} className="w-10 h-10 border-4 border-slate-200 rounded-xl checked:bg-brand appearance-none cursor-pointer transition-all" />
                            </label>

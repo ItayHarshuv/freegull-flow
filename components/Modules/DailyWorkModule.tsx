@@ -38,21 +38,21 @@ const DailyWorkModule: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8 max-w-4xl mx-auto px-1 animate-fade-in" dir="rtl">
-      <div className="brand-gradient rounded-[3rem] p-10 text-white relative shadow-2xl overflow-hidden">
+    <div className="space-y-6 md:space-y-8 max-w-4xl mx-auto px-1 animate-fade-in" dir="rtl">
+      <div className="brand-gradient rounded-[2.5rem] md:rounded-[3rem] p-6 sm:p-8 md:p-10 text-white relative shadow-2xl overflow-hidden">
         <div className="relative z-10">
-           <h2 className="text-4xl md:text-5xl font-black tracking-tight">יום עבודה פעיל</h2>
+           <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight">יום עבודה פעיל</h2>
            <p className="text-white/70 font-bold uppercase tracking-widest text-xs mt-2">דיווח שעות, הדרכות ובונוסים בזמן אמת</p>
            
            <div className="flex flex-col sm:flex-row gap-4 mt-8">
              {!activeShift ? (
-               <button onClick={startShift} className="bg-white text-brand-ocean px-10 py-5 rounded-2xl font-black shadow-xl flex items-center justify-center gap-3 hover:bg-slate-50 transition-all active:scale-95">
+               <button onClick={startShift} className="w-full sm:w-auto bg-white text-brand-ocean px-6 sm:px-10 py-4 sm:py-5 rounded-2xl font-black shadow-xl flex items-center justify-center gap-3 hover:bg-slate-50 transition-all active:scale-95">
                  <Clock size={24} strokeWidth={3} /> פתח שעון נוכחות
                </button>
              ) : (
-               <div className="bg-emerald-400/20 border border-emerald-400/30 text-emerald-100 px-6 py-4 rounded-2xl flex items-center gap-4 backdrop-blur-md">
+               <div className="w-full sm:w-auto bg-emerald-400/20 border border-emerald-400/30 text-emerald-100 px-5 sm:px-6 py-4 rounded-2xl flex flex-wrap items-center gap-3 sm:gap-4 backdrop-blur-md">
                   <div className="w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping" />
-                  <span className="font-black text-lg">משמרת פעילה מ-{activeShift.startTime}</span>
+                  <span className="font-black text-base sm:text-lg break-words">משמרת פעילה מ-{activeShift.startTime}</span>
                </div>
              )}
            </div>
@@ -60,27 +60,27 @@ const DailyWorkModule: React.FC = () => {
       </div>
 
       {activeShift && (
-        <div className="space-y-8 pb-20">
-           <section className="bg-white p-10 rounded-[3rem] border-2 border-slate-100 shadow-xl space-y-6">
+        <div className="space-y-6 md:space-y-8 pb-20">
+           <section className="bg-white p-6 sm:p-8 md:p-10 rounded-[2.5rem] md:rounded-[3rem] border-2 border-slate-100 shadow-xl space-y-6">
               <h3 className="text-xl font-black text-slate-900 flex items-center gap-3 flex-row-reverse">
                  <Star className="text-brand" /> שעות הדרכה בפועל
               </h3>
-              <div className="flex items-center justify-between bg-slate-50 p-6 rounded-3xl border-2 border-slate-100 shadow-inner">
-                 <button onClick={() => setTeachingHours(Math.max(0, teachingHours - 0.25))} className="w-16 h-16 bg-white rounded-2xl shadow-md font-black text-2xl hover:bg-slate-50 border border-slate-100 active:scale-90 transition-all">—</button>
+              <div className="flex flex-col xs:flex-row items-center justify-between gap-4 xs:gap-6 bg-slate-50 p-4 sm:p-6 rounded-3xl border-2 border-slate-100 shadow-inner">
+                 <button onClick={() => setTeachingHours(Math.max(0, teachingHours - 0.25))} className="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-2xl shadow-md font-black text-xl sm:text-2xl hover:bg-slate-50 border border-slate-100 active:scale-90 transition-all shrink-0">—</button>
                  <div className="flex flex-col items-center">
-                    <span className="text-6xl font-black text-slate-900 tabular-nums">{teachingHours.toFixed(2)}</span>
+                    <span className="text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 tabular-nums leading-none">{teachingHours.toFixed(2)}</span>
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">שעות הדרכה</span>
                  </div>
-                 <button onClick={() => setTeachingHours(teachingHours + 0.25)} className="w-16 h-16 bg-white rounded-2xl shadow-md font-black text-2xl hover:bg-slate-50 border border-slate-100 active:scale-90 transition-all">+</button>
+                 <button onClick={() => setTeachingHours(teachingHours + 0.25)} className="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-2xl shadow-md font-black text-xl sm:text-2xl hover:bg-slate-50 border border-slate-100 active:scale-90 transition-all shrink-0">+</button>
               </div>
            </section>
 
-           <section className="bg-white p-10 rounded-[3rem] border-2 border-slate-100 shadow-xl space-y-8">
+           <section className="bg-white p-6 sm:p-8 md:p-10 rounded-[2.5rem] md:rounded-[3rem] border-2 border-slate-100 shadow-xl space-y-6 md:space-y-8">
               <div className="flex flex-col md:flex-row gap-8">
                  <div className="flex-1 space-y-4">
                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mr-2">הערות למנהל</label>
                     <textarea 
-                      className="w-full p-6 bg-slate-50 border-2 border-slate-100 rounded-[2rem] font-bold text-right shadow-inner min-h-[120px] outline-none focus:border-brand" 
+                      className="w-full p-4 sm:p-6 bg-slate-50 border-2 border-slate-100 rounded-[2rem] font-bold text-right shadow-inner min-h-[120px] outline-none focus:border-brand" 
                       placeholder="פרט כאן הערות מיוחדות לגבי היום..." 
                       value={notes} 
                       onChange={e => setNotes(e.target.value)}
@@ -90,9 +90,9 @@ const DailyWorkModule: React.FC = () => {
                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mr-2">תשלום נסיעות</label>
                     <button 
                       onClick={() => setHasTravel(!hasTravel)}
-                      className={`w-full flex items-center justify-between p-6 rounded-[2rem] border-4 transition-all ${hasTravel ? 'bg-indigo-600 border-indigo-700 text-white shadow-lg' : 'bg-slate-50 border-slate-200 text-slate-400'}`}
+                      className={`w-full flex items-center justify-between gap-4 p-4 sm:p-6 rounded-[2rem] border-4 transition-all ${hasTravel ? 'bg-indigo-600 border-indigo-700 text-white shadow-lg' : 'bg-slate-50 border-slate-200 text-slate-400'}`}
                     >
-                       <span className="font-black text-lg">תשלום נסיעות</span>
+                       <span className="font-black text-base sm:text-lg">תשלום נסיעות</span>
                        <Car size={24} className={hasTravel ? 'text-white' : 'text-slate-300'} />
                     </button>
                  </div>
@@ -100,9 +100,9 @@ const DailyWorkModule: React.FC = () => {
 
               <button 
                 onClick={handleClockOut} 
-                className="w-full bg-rose-600 text-white py-8 rounded-[2.5rem] font-black text-2xl uppercase tracking-[0.1em] shadow-2xl hover:bg-rose-700 transition-all active:scale-95 flex items-center justify-center gap-4"
+                className="w-full bg-rose-600 text-white py-5 sm:py-8 rounded-[2.5rem] font-black text-lg sm:text-2xl uppercase tracking-[0.1em] shadow-2xl hover:bg-rose-700 transition-all active:scale-95 flex items-center justify-center gap-3 sm:gap-4"
               >
-                <LogOut size={32} /> סיום משמרת ודיווח
+                <LogOut size={28} className="shrink-0" /> סיום משמרת ודיווח
               </button>
            </section>
         </div>

@@ -6,6 +6,9 @@
   --color-brand-light: #e6f6f7;
   --color-brand-ocean: #00425a;
   --font-sans: "Assistant", sans-serif;
+  --breakpoint-xs: 30rem;
+  --breakpoint-nav: 56rem;
+  --breakpoint-wide: 110rem;
 }
 
 @layer base {

@@ -243,8 +243,8 @@ const SchedulingModule: React.FC = () => {
   const getFirstDayOfMonth = (y: number, m: number) => new Date(y, m, 1).getDay();
 
   return (
-    <div className="space-y-8 md:space-y-12 max-w-7xl mx-auto pb-24 text-right px-2" dir="rtl">
-      <header className="flex flex-col md:flex-row justify-between items-center gap-6 border-b border-slate-200 pb-10">
+    <div className="space-y-6 md:space-y-12 max-w-7xl mx-auto pb-24 text-right px-2" dir="rtl">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-b border-slate-200 pb-10">
         <div className="text-right w-full">
           <h2 className="text-4xl md:text-6xl font-black text-brand-ocean tracking-tight leading-none">ניהול שיעורים</h2>
           <p className="text-slate-600 font-bold uppercase tracking-widest text-xs mt-3">שיבוץ חכם, מעקב קורסים והודעות לקוחות</p>
@@ -270,9 +270,9 @@ const SchedulingModule: React.FC = () => {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+      <div className="space-y-8 md:space-y-10">
         {isManager && !showArchive && (
-          <section className="bg-white p-10 rounded-[3rem] border-2 border-slate-100 shadow-2xl space-y-8 animate-fade-in flex flex-col sticky top-8 h-fit">
+          <section className="bg-white p-4 xs:p-6 md:p-10 rounded-[2rem] md:rounded-[3rem] border-2 border-slate-100 shadow-2xl space-y-8 animate-fade-in flex flex-col">
             <h3 className="text-2xl font-black text-brand-ocean flex items-center gap-4 justify-end flex-row-reverse">
               {editingLessonId ? 'עדכון שיעור' : 'שיבוץ חדש'} 
               {editingLessonId ? <Edit2 size={28} className="text-brand" strokeWidth={4} /> : <Plus size={28} className="text-brand" strokeWidth={4} />}
@@ -285,7 +285,7 @@ const SchedulingModule: React.FC = () => {
                  </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                  <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">תאריך</label>
                     <button type="button" onClick={() => setIsDatePickerOpen(true)} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-right shadow-inner cursor-pointer flex items-center justify-between hover:border-brand transition-all">
@@ -302,7 +302,7 @@ const SchedulingModule: React.FC = () => {
                  </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                  <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">סוג ספורט</label>
                     <button type="button" onClick={() => setIsSportPickerOpen(true)} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-right shadow-inner cursor-pointer flex items-center justify-between hover:border-brand transition-all">
@@ -319,7 +319,7 @@ const SchedulingModule: React.FC = () => {
                  </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                  <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">שיעור #</label>
                     <button type="button" onClick={() => setIsNumberPickerOpen(true)} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-center shadow-inner cursor-pointer flex items-center justify-between hover:border-brand transition-all">
@@ -341,7 +341,7 @@ const SchedulingModule: React.FC = () => {
                 <input required inputMode="tel" title={PHONE_VALIDATION_MESSAGE} value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="0500000000" className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-left shadow-inner tabular-nums focus:ring-2 focus:ring-brand outline-none" />
               </div>
 
-              <div className="flex gap-4">
+              <div className="flex flex-col xs:flex-row gap-4">
                 {editingLessonId && (
                   <button 
                     type="button" 
@@ -359,7 +359,7 @@ const SchedulingModule: React.FC = () => {
           </section>
         )}
 
-        <div className={`${showArchive || !isManager ? 'lg:col-span-3' : 'lg:col-span-2'} space-y-12`}>
+        <div className="space-y-12">
            {groupedLessons.length === 0 && (
               <div className="py-40 text-center bg-white border-4 border-dashed border-slate-200 rounded-[4rem] text-slate-300 font-black italic text-2xl animate-pulse">
                  {showArchive ? 'הארכיון ריק כרגע' : 'לא נמצאו שיעורים ביומן'}
@@ -368,8 +368,8 @@ const SchedulingModule: React.FC = () => {
 
            {groupedLessons.map(group => (
               <div key={group.date} className="space-y-6">
-                 <div className="flex items-center justify-between sticky top-[0px] z-[5] bg-[#F8FAFC]/90 backdrop-blur-md py-4 border-b border-slate-200">
-                    <h4 className="text-2xl font-black text-brand-ocean flex items-center gap-3">
+                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sticky top-[0px] z-[5] bg-[#F8FAFC]/90 backdrop-blur-md py-4 border-b border-slate-200">
+                    <h4 className="text-xl sm:text-2xl font-black text-brand-ocean flex items-center gap-3">
                        <Calendar className="text-brand" size={24}/>
                        {new Date(group.date).toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}
                     </h4>
@@ -391,22 +391,22 @@ const SchedulingModule: React.FC = () => {
                           <div key={l.id} className={`bg-white rounded-[3rem] border shadow-xl overflow-hidden transition-all animate-fade-in ${isExpanded ? 'ring-2 ring-brand ring-inset' : 'border-slate-200'} ${l.isCancelled ? 'grayscale opacity-60 bg-slate-50' : ''}`}>
                              <div 
                                 onClick={() => setExpandedLessonId(isExpanded ? null : l.id)}
-                                className="p-8 flex items-center gap-10 cursor-pointer hover:bg-slate-50 transition-colors relative"
+                                className="p-4 xs:p-5 md:p-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-4 sm:gap-6 md:gap-10 cursor-pointer hover:bg-slate-50 transition-colors relative"
                              >
                                 {live && (
-                                   <div className="absolute top-4 left-8 bg-emerald-500 text-white px-3 py-1 rounded-full text-[9px] font-black animate-pulse flex items-center gap-1">
+                                   <div className="absolute top-4 left-4 xs:left-5 md:left-8 bg-emerald-500 text-white px-3 py-1 rounded-full text-[9px] font-black animate-pulse flex items-center gap-1">
                                       <div className="w-1 h-1 bg-white rounded-full animate-ping"/> שיעור במים
                                    </div>
                                 )}
                                 
-                                <div className={`flex flex-col items-center justify-center w-28 h-28 text-white rounded-[2.5rem] border-4 transition-all shadow-xl shrink-0 ${l.isCancelled ? 'bg-slate-400 border-slate-300' : 'bg-slate-900 border-slate-800'}`}>
-                                  <span className="text-2xl font-black tabular-nums tracking-tighter leading-tight" dir="ltr">{l.time}</span>
+                                <div className={`flex flex-col items-center justify-center w-full xs:w-24 sm:w-28 h-auto xs:h-24 sm:h-28 p-3 xs:p-0 text-white rounded-[2rem] sm:rounded-[2.5rem] border-4 transition-all shadow-xl shrink-0 ${l.isCancelled ? 'bg-slate-400 border-slate-300' : 'bg-slate-900 border-slate-800'}`}>
+                                  <span className="text-xl sm:text-2xl font-black tabular-nums tracking-tighter leading-tight" dir="ltr">{l.time}</span>
                                   {l.endTime && <span className="text-[10px] font-black opacity-60">עד {l.endTime}</span>}
                                   <span className="text-[10px] font-black text-brand uppercase mt-1">{new Date(l.date).toLocaleDateString('he-IL', {day:'numeric', month:'numeric'})}</span>
                                 </div>
                                 
                                 <div className="flex-1 min-w-0 text-right">
-                                   <h4 className={`text-3xl font-black text-brand-ocean truncate leading-tight ${l.isCancelled ? 'line-through decoration-rose-500 decoration-4' : ''}`}>{l.clientName}</h4>
+                                   <h4 className={`text-2xl md:text-3xl font-black text-brand-ocean truncate leading-tight ${l.isCancelled ? 'line-through decoration-rose-500 decoration-4' : ''}`}>{l.clientName}</h4>
                                    <div className="flex flex-wrap items-center gap-3 mt-4 flex-row-reverse justify-end">
                                       <span className="text-xs font-black uppercase px-5 py-2 rounded-xl bg-brand text-white shadow-md flex items-center gap-2">
                                          {SPORT_TYPES.find(s => s.value === l.type)?.icon} {l.type}
@@ -418,7 +418,7 @@ const SchedulingModule: React.FC = () => {
                                    </div>
                                 </div>
 
-                                <div className="flex items-center gap-4">
+                                <div className="flex items-center justify-between sm:justify-normal gap-4 w-full sm:w-auto">
                                    <a onClick={(e) => e.stopPropagation()} href={`https://wa.me/${l.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener" className="w-16 h-16 rounded-[1.5rem] bg-emerald-50 text-emerald-600 border-2 border-emerald-100 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all shadow-lg shrink-0 active:scale-90">
                                       <MessageCircle className="w-8 h-8" strokeWidth={3} />
                                    </a>
@@ -427,7 +427,7 @@ const SchedulingModule: React.FC = () => {
                              </div>
 
                              {isExpanded && (
-                                <div className="p-8 bg-slate-50 border-t border-slate-100 animate-fade-in text-right">
+                                <div className="p-4 xs:p-5 md:p-8 bg-slate-50 border-t border-slate-100 animate-fade-in text-right">
                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
                                       <div className="space-y-1">
                                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">טלפון ליצירת קשר</p>
@@ -446,7 +446,7 @@ const SchedulingModule: React.FC = () => {
                                    </div>
 
                                    <div className="flex flex-wrap gap-4 pt-8 border-t border-slate-200/40">
-                                      <div className="flex gap-2 flex-1 min-w-[300px]">
+                                      <div className="flex flex-col sm:flex-row gap-2 flex-1 min-w-0">
                                          <button 
                                            onClick={() => updateLesson({ ...l, isRegistered: !l.isRegistered })}
                                            className={`flex-1 p-4 rounded-xl border font-black text-xs flex items-center justify-center gap-2 transition-all ${l.isRegistered ? 'bg-emerald-600 text-white border-emerald-700 shadow-md' : 'bg-white border-slate-200 text-slate-400 hover:border-emerald-300 shadow-sm'}`}
@@ -461,7 +461,7 @@ const SchedulingModule: React.FC = () => {
                                          </button>
                                       </div>
                                       
-                                      <div className="flex gap-2 flex-1 min-w-[300px]">
+                                      <div className="flex flex-col sm:flex-row gap-2 flex-1 min-w-0">
                                          <button 
                                            onClick={() => updateLesson({ ...l, isCancelled: !l.isCancelled })}
                                            className={`flex-1 p-4 rounded-xl border font-black text-xs flex items-center justify-center gap-2 transition-all ${l.isCancelled ? 'bg-slate-900 text-white border-slate-900' : 'bg-white border-slate-200 text-slate-600 shadow-sm hover:border-rose-400'}`}
@@ -481,8 +481,8 @@ const SchedulingModule: React.FC = () => {
                                       </div>
                                    </div>
 
-                                   <div className="flex items-center justify-between mt-8 pt-8 border-t border-slate-200">
-                                      <div className="flex gap-3">
+                                   <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-4 mt-8 pt-8 border-t border-slate-200">
+                                      <div className="flex flex-col xs:flex-row gap-3">
                                          {isManager && (
                                            <button 
                                              onClick={() => handleEditClick(l)}
@@ -516,14 +516,14 @@ const SchedulingModule: React.FC = () => {
 
       {/* Time Picker Modal */}
       {isTimePickerOpen && (
-        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-900/80 backdrop-blur-md p-4 animate-fade-in" onClick={() => setIsTimePickerOpen(false)}>
-           <div className="bg-white w-full max-w-lg rounded-[3rem] shadow-2xl p-8" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-900/80 backdrop-blur-md p-3 xs:p-4 animate-fade-in" onClick={() => setIsTimePickerOpen(false)}>
+           <div className="bg-white w-full max-w-lg rounded-[2rem] sm:rounded-[3rem] shadow-2xl p-4 xs:p-6 sm:p-8" onClick={e => e.stopPropagation()}>
               <div className="flex justify-between items-center mb-8 flex-row-reverse">
                  <h3 className="text-2xl font-black text-slate-900">שעות פעילות</h3>
                  <button onClick={() => setIsTimePickerOpen(false)} className="p-2 text-slate-400 hover:text-rose-500 transition-colors"><X size={24}/></button>
               </div>
 
-              <div className="grid grid-cols-2 gap-8 text-right">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8 text-right">
                  <div className="space-y-4">
                     <h4 className="text-sm font-black text-brand uppercase tracking-widest border-b border-brand/10 pb-2 text-center">שעת התחלה</h4>
                     <div className="flex gap-2" dir="ltr">
@@ -587,7 +587,7 @@ const SchedulingModule: React.FC = () => {
                  </div>
               </div>
 
-              <div className="flex gap-4 mt-12">
+              <div className="flex flex-col sm:flex-row gap-4 mt-12">
                  <button type="button" onClick={() => setIsTimePickerOpen(false)} className="flex-1 p-5 rounded-2xl bg-slate-100 text-slate-600 font-black uppercase text-xs tracking-widest transition-all hover:bg-slate-200 active:scale-95">ביטול</button>
                  <button type="button" onClick={() => {
                     setForm(prev => ({ ...prev, time: `${tempTimeStart.h}:${tempTimeStart.m}`, endTime: `${tempTimeEnd.h}:${tempTimeEnd.m}` }));

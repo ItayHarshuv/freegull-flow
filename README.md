@@ -79,23 +79,31 @@ If you also want to remove database volume data:
 
 ## TODO
 [ ] random refrshes
-[ ] overall responsiveness
+[x] overall responsiveness
 [x] creating lessons, creating event, creating a task - gives bad request
-[ ] make the tables in payrollopenable and closed
+[ ] make the tables in payroll openable and closed
 [ ] in knowledge page, it doesnt really upload anything
 [ ] maintenance page necesery?
 
 ### Rentals page
 [ ] it shows paid even when it is not
+[ ] hide equtment availability button togle if archive is on
+[ ] RentalsModule.tsx:233 In HTML, <button> cannot be a descendant of <button>.
+This will cause a hydration error.
+[ ] Make active rentals card visible more pleasent
+
 
 ### events page
 [ ] make the list of the events stack over another showing only the name of the event and the date. when pressing it expands to show all of the info
 
 ###tasks page
-[ ] make a button "סמן כבוצע ושמור", and סמן כלא בוצא in the archive
+[ ] make a button "סמן כבוצע ושמור", and סמן כלא בוצע in the archive
 [ ] send email button trigers with popup massage showing the potential recipiensto approve the sending of the emails 
 [ ] 
 
 ### availability page
 
 [ ] A component is changing an uncontrolled input to be controlled.
+
+### Daily work page
+[ ] instraction hours are not saves when exiting the page

@@ -39,7 +39,7 @@ const RentalCard: React.FC<{ rental: Rental }> = ({ rental }) => {
       relative p-6 md:p-8 rounded-[2.5rem] border-2 shadow-xl transition-all animate-fade-in flex flex-col gap-6
       ${isOverdue && !rental.isReturned ? 'bg-rose-50 border-rose-500 ring-4 ring-rose-200' : 'bg-white border-slate-200'}
     `}>
-      <div className="flex justify-between items-start text-right flex-row-reverse">
+      <div className="flex flex-col xs:flex-row justify-between items-start gap-3 text-right flex-row-reverse">
         <div className="flex-1 min-w-0">
           <h3 className="text-xl md:text-2xl font-black text-slate-900 leading-tight truncate">{rental.clientName}</h3>
           <p className="text-[10px] font-black text-slate-600 uppercase mt-1 tracking-wider">{rental.quantity}x {rental.item}</p>
@@ -159,12 +159,12 @@ const RentalsModule: React.FC = () => {
 
   return (
     <div className="space-y-6 md:space-y-10 pb-20 max-w-7xl mx-auto text-right px-2">
-      <header className="flex flex-col md:flex-row justify-between items-center gap-6 px-1 flex-row-reverse">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 px-1">
         <div className="text-right">
           <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight">דלפק השכרות</h2>
           <p className="text-slate-600 font-bold uppercase tracking-widest text-[10px] md:text-xs mt-2">מעקב ציוד בזמן אמת וארכיון היסטורי</p>
         </div>
-        <div className="flex gap-3 w-full md:w-auto">
+        <div className="flex flex-col xs:flex-row gap-3 w-full md:w-auto">
           <button 
             onClick={() => setIsSetupOpen(!isSetupOpen)}
             className={`flex-1 md:flex-none flex items-center justify-center gap-3 px-6 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md ${isSetupOpen ? 'bg-brand text-white' : 'bg-white text-brand border border-brand/20'}`}
@@ -280,8 +280,8 @@ const RentalsModule: React.FC = () => {
            </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 md:gap-12">
-          <section className="bg-white p-8 md:p-10 rounded-[3rem] border-2 border-slate-200 shadow-2xl sticky top-8 text-right flex flex-col gap-8">
+        <div className="space-y-8 md:space-y-10">
+          <section className="bg-white p-4 xs:p-6 md:p-10 rounded-[2rem] md:rounded-[3rem] border-2 border-slate-200 shadow-2xl text-right flex flex-col gap-8">
             <h3 className="text-2xl font-black text-slate-900 flex items-center gap-3 justify-end flex-row-reverse">
               השכרה חדשה <Plus size={24} className="text-brand" strokeWidth={4} />
             </h3>
@@ -291,7 +291,7 @@ const RentalsModule: React.FC = () => {
                  <input required className="w-full p-4 md:p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-right shadow-inner focus:ring-2 focus:ring-brand" value={form.clientName} onChange={e => setForm({...form, clientName: e.target.value})} placeholder="מי משכיר?" />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                  <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">סוג הציוד</label>
                     <select required className="w-full p-4 md:p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-right appearance-none" value={form.item} onChange={e => setForm({...form, item: e.target.value})}>
@@ -309,7 +309,7 @@ const RentalsModule: React.FC = () => {
                  </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                  <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">משך זמן</label>
                     <select className="w-full p-4 md:p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-right appearance-none" value={isOtherDuration ? 'other' : form.durationMinutes} onChange={e => {
@@ -355,7 +355,7 @@ const RentalsModule: React.FC = () => {
             </form>
           </section>
 
-          <div className="lg:col-span-2 space-y-8 text-right">
+          <div className="space-y-8 text-right">
              <h3 className="text-2xl md:text-3xl font-black text-brand-ocean flex items-center gap-4 px-2 justify-end flex-row-reverse">
                 ציוד פעיל במים <Clock size={32} className="text-brand" />
              </h3>

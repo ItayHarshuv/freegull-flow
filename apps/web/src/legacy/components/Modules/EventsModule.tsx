@@ -478,7 +478,7 @@ const EventsModule: React.FC = () => {
 
   return (
     <div className="space-y-8 md:space-y-12 max-w-7xl mx-auto text-right animate-fade-in px-1" dir="rtl">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-b border-slate-200 pb-10 flex-row-reverse">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-b border-slate-200 pb-10">
         <div className="text-right w-full md:w-auto">
           <h2 className="text-4xl md:text-5xl font-black text-indigo-950 tracking-tight leading-none">חילוצים במזרחית</h2>
           <p className="text-slate-600 font-bold uppercase tracking-widest text-xs mt-3">ניהול ימי חילוץ ומעקב בזמן אמת</p>

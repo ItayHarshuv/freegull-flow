@@ -91,7 +91,7 @@ const PayrollModule: React.FC = () => {
 
   return (
     <div className="space-y-6 md:space-y-8 max-w-7xl mx-auto text-right animate-fade-in px-2" dir="rtl">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 px-1 flex-row-reverse">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 px-1">
         <div className="text-right">
           <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-none">דוחות שכר וטפסים</h2>
           <p className="text-slate-600 font-bold uppercase tracking-widest text-[9px] md:text-xs mt-2">ריכוז שכר, בונוסים והורדת טפסי 101</p>

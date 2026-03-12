@@ -52,7 +52,7 @@ ${clubSettings.locationText}
 
   return (
     <div className="space-y-10 max-w-4xl mx-auto text-right animate-fade-in px-1" dir="rtl">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-b border-slate-200 pb-10 flex-row-reverse">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-b border-slate-200 pb-10">
         <div className="text-right">
           <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight leading-none">מידע על המועדון</h2>
           <p className="text-slate-600 font-bold uppercase tracking-widest text-xs mt-3">פרטי קשר, מיקום ותשלומים לשימוש המשרד והחנות</p>
