@@ -3,6 +3,7 @@ import React, { useState, useRef, useMemo } from 'react';
 import { useAppStore } from '../../store';
 import { Anchor, Waves, Plus, Search, User, Phone, Check, Globe, X, ShieldCheck, Calendar, ChevronDown, ChevronUp, Filter, ListPlus, Trash2, Copy, Table, AlertTriangle, LifeBuoy, Play, Minus, ChevronRight, ChevronLeft, BarChart3, Archive, Undo2, Edit, Ship, Save } from 'lucide-react';
 import { SeaEvent, EventParticipant, BoatAssignment } from '../../types';
+import { isValidOptionalPhone, normalizePhoneInput, PHONE_VALIDATION_MESSAGE } from '../../utils/phone';
 
 interface BulkParticipantEntry {
   tempId: string;
@@ -120,15 +121,36 @@ const EventsModule: React.FC = () => {
     setIsDatePickerOpen(false);
   };
 
+  const validateBoats = (boats: BoatAssignment[]) => {
+    for (const [index, boat] of boats.entries()) {
+      if (!boat.operatorId.trim()) {
+        alert(`נא לבחור מפעיל ראשי עבור סירה #${index + 1}`);
+        return null;
+      }
+      if (boat.assistantId && boat.assistantId === boat.operatorId) {
+        alert(`לא ניתן לשבץ את אותו עובד כמפעיל וכעוזר בסירה #${index + 1}`);
+        return null;
+      }
+    }
+
+    return boats.map((boat) => ({
+      ...boat,
+      operatorId: boat.operatorId.trim(),
+      assistantId: boat.assistantId.trim(),
+    }));
+  };
+
   const handleCreateEvent = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEventData.name) return;
+    const boats = validateBoats(newEventBoats);
+    if (!boats) return;
     const eventId = Math.random().toString(36).substr(2, 9);
     addEvent({
       id: eventId,
       name: newEventData.name,
       date: newEventData.date,
-      boats: newEventBoats,
+      boats,
       participants: [],
       isArchived: false
     });
@@ -149,11 +171,13 @@ const EventsModule: React.FC = () => {
 
   const handleSaveEventChanges = () => {
       if (!activeEvent) return;
+      const boats = validateBoats(editingEventData.boats);
+      if (!boats) return;
       updateEvent({
           ...activeEvent,
           name: editingEventData.name,
           date: editingEventData.date,
-          boats: editingEventData.boats
+          boats
       });
       setIsEditEventModalOpen(false);
   };
@@ -211,8 +235,14 @@ const EventsModule: React.FC = () => {
 
   const handleEditParticipantSave = () => {
     if (!activeEvent || !editingParticipantId) return;
+    if (!isValidOptionalPhone(editParticipantForm.phone)) {
+      alert(PHONE_VALIDATION_MESSAGE);
+      return;
+    }
     const updatedParticipants = activeEvent.participants.map(p => 
-      p.id === editingParticipantId ? { ...p, ...editParticipantForm } : p
+      p.id === editingParticipantId
+        ? { ...p, ...editParticipantForm, phone: normalizePhoneInput(editParticipantForm.phone) }
+        : p
     );
     updateEvent({ ...activeEvent, participants: updatedParticipants });
     setEditingParticipantId(null);
@@ -222,9 +252,14 @@ const EventsModule: React.FC = () => {
   const handleAddParticipant = (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeEvent || !newP.name) return;
+    if (!isValidOptionalPhone(newP.phone)) {
+      alert(PHONE_VALIDATION_MESSAGE);
+      return;
+    }
     const p: EventParticipant = {
       id: Math.random().toString(36).substr(2, 9),
       ...newP,
+      phone: normalizePhoneInput(newP.phone),
       status: 'out-water',
       hasArrived: false,
       rescues: 0
@@ -333,12 +368,16 @@ const EventsModule: React.FC = () => {
       alert('נא להזין לפחות שם אחד');
       return;
     }
+    if (validEntries.some((entry) => !isValidOptionalPhone(entry.phone))) {
+      alert(PHONE_VALIDATION_MESSAGE);
+      return;
+    }
 
     const newParticipants: EventParticipant[] = validEntries.map(b => {
       const p: EventParticipant = {
         id: Math.random().toString(36).substr(2, 9),
         name: b.name,
-        phone: b.phone,
+        phone: normalizePhoneInput(b.phone),
         equipment: b.equipment,
         notes: b.notes,
         status: 'out-water',
@@ -623,7 +662,7 @@ const EventsModule: React.FC = () => {
                          </div>
                          <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase mr-1">טלפון</label>
-                            <input placeholder="05x-xxxxxxx" className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-right shadow-inner tabular-nums outline-none focus:ring-2 focus:ring-indigo-200" value={newP.phone} onChange={e => setNewP({...newP, phone: e.target.value})} />
+                            <input inputMode="tel" title={PHONE_VALIDATION_MESSAGE} placeholder="05xxxxxxxx" className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-right shadow-inner tabular-nums outline-none focus:ring-2 focus:ring-indigo-200" value={newP.phone} onChange={e => setNewP({...newP, phone: e.target.value})} />
                          </div>
                          <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase mr-1">סוג ספורט</label>
@@ -653,7 +692,7 @@ const EventsModule: React.FC = () => {
                        {isEditing ? (
                           <div className="space-y-3 animate-fade-in">
                              <input className="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg font-black text-sm text-right" value={editParticipantForm.name} onChange={e => setEditParticipantForm({...editParticipantForm, name: e.target.value})} placeholder="שם מלא"/>
-                             <input className="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg font-bold text-xs text-right tabular-nums" value={editParticipantForm.phone} onChange={e => setEditParticipantForm({...editParticipantForm, phone: e.target.value})} placeholder="טלפון"/>
+                             <input inputMode="tel" title={PHONE_VALIDATION_MESSAGE} className="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg font-bold text-xs text-right tabular-nums" value={editParticipantForm.phone} onChange={e => setEditParticipantForm({...editParticipantForm, phone: e.target.value})} placeholder="טלפון"/>
                              <input className="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg font-bold text-xs text-right" value={editParticipantForm.equipment} onChange={e => setEditParticipantForm({...editParticipantForm, equipment: e.target.value})} placeholder="ציוד"/>
                              <textarea className="w-full p-2 bg-slate-100 border border-slate-200 rounded-lg font-bold text-xs text-right h-20" value={editParticipantForm.notes || ''} onChange={e => setEditParticipantForm({...editParticipantForm, notes: e.target.value})} placeholder="הערות"/>
                              <button onClick={handleEditParticipantSave} className="w-full bg-emerald-500 text-white py-2 rounded-xl font-black text-xs shadow-md flex items-center justify-center gap-2"><Save size={16}/> שמור שינויים</button>

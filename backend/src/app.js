@@ -8,6 +8,7 @@ import {
   readState,
   readStateVersion,
   readStateWithVersion,
+  StateValidationError,
   StateVersionConflictError,
   writeState,
 } from "./stateRepository.js";
@@ -311,6 +312,19 @@ function sendRouteError(res, error) {
     return res.status(409).json({ error: "State version conflict" });
   }
 
+  if (error instanceof StateValidationError) {
+    return res.status(400).json({
+      error: "Validation failed",
+      issues: [
+        {
+          path: error.path || "",
+          message: error.message,
+          code: "custom",
+        },
+      ],
+    });
+  }
+
   if (error instanceof ZodError) {
     return res.status(400).json({
       error: "Validation failed",
@@ -401,6 +415,7 @@ app.put("/state/:clubId", requireAuth, async (req, res) => {
   try {
     const { clubId } = clubIdSchema.parse(req.params);
     if (!enforceClubAccess(req, res, clubId)) return;
+    console.log("[STATE_PUT_REQUEST_BODY]", { clubId, body: req.body });
     const parsed = stateSchema.parse(req.body);
     await writeState(clubId, parsed.state, parsed.expectedVersion);
     const { state, version } = await readStateWithVersion(clubId);

@@ -3,6 +3,7 @@ import { BookOpen, Calendar, CheckCircle2, ChevronDown, ChevronLeft, ChevronRigh
 import React, { useMemo, useState, useEffect } from 'react';
 import { useAppStore } from '../../store';
 import { Certification, Lesson, LessonPath } from '../../types';
+import { isValidPhone, normalizePhoneInput, PHONE_VALIDATION_MESSAGE } from '../../utils/phone';
 
 const SPORT_TYPES: { value: Certification, icon: React.ReactNode, duration: number, lessons: number }[] = [
   { value: 'גלישת גלים', icon: <Waves size={24} />, duration: 90, lessons: 4 },
@@ -184,18 +185,22 @@ const SchedulingModule: React.FC = () => {
       alert('נא למלא את כל שדות החובה');
       return;
     }
+    if (!isValidPhone(form.phone)) {
+      alert(PHONE_VALIDATION_MESSAGE);
+      return;
+    }
     
     const lessonData: Lesson = {
       id: editingLessonId || Math.random().toString(36).substr(2, 9),
       clientName: form.clientName!,
-      phone: form.phone!,
+      phone: normalizePhoneInput(form.phone),
       type: (form.type as Certification) || 'גלישת גלים',
       pathType: (form.pathType as LessonPath) || 'Course',
       lessonNumber: Number(form.lessonNumber) || 1,
       time: `${tempTimeStart.h}:${tempTimeStart.m}`,
       endTime: `${tempTimeEnd.h}:${tempTimeEnd.m}`,
       date: form.date!,
-      instructorId: form.instructorId,
+      instructorId: form.instructorId?.trim() || undefined,
       voucherNumber: form.hasVoucher ? form.voucherNumber : undefined,
       isRegistered: form.isRegistered,
       isPaid: form.isPaid,
@@ -333,7 +338,7 @@ const SchedulingModule: React.FC = () => {
 
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">טלפון לקוח</label>
-                <input required value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="050-0000000" className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-left shadow-inner tabular-nums focus:ring-2 focus:ring-brand outline-none" />
+                <input required inputMode="tel" title={PHONE_VALIDATION_MESSAGE} value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="0500000000" className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-left shadow-inner tabular-nums focus:ring-2 focus:ring-brand outline-none" />
               </div>
 
               <div className="flex gap-4">

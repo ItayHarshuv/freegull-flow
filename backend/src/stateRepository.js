@@ -7,6 +7,14 @@ export class StateVersionConflictError extends Error {
   }
 }
 
+export class StateValidationError extends Error {
+  constructor(message, path) {
+    super(message);
+    this.name = "StateValidationError";
+    this.path = path;
+  }
+}
+
 const DEFAULT_STATE = {
   currentUser: null,
   isEditorMode: false,
@@ -51,10 +59,87 @@ const TABLES_TO_CLEAR = [
   "users",
 ];
 
+const PHONE_REGEX = /^(?:\+\d+|0\d+)$/;
+
 function toDateString(value) {
   if (!value) return null;
   if (typeof value === "string") return value;
   return new Date(value).toISOString().slice(0, 10);
+}
+
+function normalizeString(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeOptionalString(value) {
+  const normalized = normalizeString(value);
+  return normalized || null;
+}
+
+function normalizePhone(value) {
+  const normalized = normalizeString(value);
+  if (!normalized) return "";
+
+  const digitsOnly = normalized.replace(/\D/g, "");
+  return normalized.startsWith("+") ? `+${digitsOnly}` : digitsOnly;
+}
+
+function validatePhone(value, path, { required = false } = {}) {
+  const normalized = normalizePhone(value);
+  if (!normalized) {
+    if (required) {
+      throw new StateValidationError(`${path} is required`, path);
+    }
+    return null;
+  }
+
+  if (!PHONE_REGEX.test(normalized)) {
+    throw new StateValidationError(
+      `${path} must start with "+" or "0" and contain digits only`,
+      path
+    );
+  }
+
+  return normalized;
+}
+
+function requireUserId(value, userIds, path) {
+  const normalized = normalizeOptionalString(value);
+  if (!normalized) {
+    throw new StateValidationError(`${path} is required`, path);
+  }
+  if (!userIds.has(normalized)) {
+    throw new StateValidationError(`${path} must reference an existing user id`, path);
+  }
+  return normalized;
+}
+
+function resolveOptionalUserId(value, userIds, path) {
+  const normalized = normalizeOptionalString(value);
+  if (!normalized) {
+    return null;
+  }
+  if (!userIds.has(normalized)) {
+    throw new StateValidationError(`${path} must reference an existing user id`, path);
+  }
+  return normalized;
+}
+
+function resolveTaskCreatorId(value, userIds, userIdsByName, path) {
+  const normalized = normalizeOptionalString(value);
+  if (!normalized) {
+    throw new StateValidationError(`${path} is required`, path);
+  }
+  if (userIds.has(normalized)) {
+    return normalized;
+  }
+
+  const matchingIds = userIdsByName.get(normalized) || [];
+  if (matchingIds.length === 1) {
+    return matchingIds[0];
+  }
+
+  throw new StateValidationError(`${path} must reference an existing user id`, path);
 }
 
 async function clearClubData(client, clubId) {
@@ -216,7 +301,7 @@ async function readStateTx(client, clubId) {
     current.push({
       id: row.id,
       operatorId: row.operator_id,
-      assistantId: row.assistant_id,
+      assistantId: row.assistant_id ?? "",
     });
     boatsByEvent.set(row.event_id, current);
   }
@@ -425,6 +510,22 @@ export async function writeState(clubId, state, expectedVersion) {
     }
 
     const incomingUsers = Array.isArray(state.users) ? state.users : [];
+    const userIds = new Set();
+    const userIdsByName = new Map();
+    for (const [index, user] of incomingUsers.entries()) {
+      const userId = normalizeOptionalString(user?.id);
+      if (!userId) {
+        throw new StateValidationError(`users[${index}].id is required`, `users[${index}].id`);
+      }
+      userIds.add(userId);
+
+      const userName = normalizeOptionalString(user?.name);
+      if (userName) {
+        const existingIds = userIdsByName.get(userName) || [];
+        existingIds.push(userId);
+        userIdsByName.set(userName, existingIds);
+      }
+    }
     const existingUsersCountRes = await client.query(
       "SELECT COUNT(*)::int AS count FROM users WHERE club_id = $1",
       [clubId]
@@ -438,7 +539,7 @@ export async function writeState(clubId, state, expectedVersion) {
 
     await clearClubData(client, clubId);
 
-    for (const user of incomingUsers) {
+    for (const [index, user] of incomingUsers.entries()) {
       await client.query(
         `
           INSERT INTO users (
@@ -453,7 +554,7 @@ export async function writeState(clubId, state, expectedVersion) {
           clubId,
           user.name,
           user.email,
-          user.phone,
+          validatePhone(user.phone, `users[${index}].phone`) ?? "",
           user.role,
           user.avatar || "",
           !!user.isArchived,
@@ -543,7 +644,13 @@ export async function writeState(clubId, state, expectedVersion) {
       );
     }
 
-    for (const lesson of state.lessons || []) {
+    const lessons = Array.isArray(state.lessons) ? state.lessons : [];
+    for (const [index, lesson] of lessons.entries()) {
+      const instructorId = resolveOptionalUserId(
+        lesson.instructorId,
+        userIds,
+        `lessons[${index}].instructorId`
+      );
       await client.query(
         `
           INSERT INTO lessons (
@@ -559,14 +666,14 @@ export async function writeState(clubId, state, expectedVersion) {
           lesson.id,
           clubId,
           lesson.clientName,
-          lesson.phone,
+          validatePhone(lesson.phone, `lessons[${index}].phone`, { required: true }),
           lesson.type,
           lesson.pathType,
           lesson.lessonNumber,
           toDateString(lesson.date),
           lesson.time,
           lesson.endTime ?? null,
-          lesson.instructorId ?? null,
+          instructorId,
           lesson.voucherNumber ?? null,
           lesson.hasVoucher ?? null,
           lesson.isRegistered ?? null,
@@ -603,7 +710,14 @@ export async function writeState(clubId, state, expectedVersion) {
       );
     }
 
-    for (const task of state.tasks || []) {
+    const tasks = Array.isArray(state.tasks) ? state.tasks : [];
+    for (const [index, task] of tasks.entries()) {
+      const createdBy = resolveTaskCreatorId(
+        task.createdBy,
+        userIds,
+        userIdsByName,
+        `tasks[${index}].createdBy`
+      );
       await client.query(
         `
           INSERT INTO tasks (
@@ -616,24 +730,32 @@ export async function writeState(clubId, state, expectedVersion) {
           clubId,
           task.title,
           task.type,
-          task.clientName ?? null,
-          task.clientPhone ?? null,
+          normalizeOptionalString(task.clientName),
+          validatePhone(task.clientPhone, `tasks[${index}].clientPhone`),
           task.priority,
           task.status,
-          task.createdBy,
+          createdBy,
           task.createdAt || new Date().toISOString(),
         ]
       );
 
-      for (const userId of task.assignedTo || []) {
+      for (const [assigneeIndex, userId] of (task.assignedTo || []).entries()) {
         await client.query(
           "INSERT INTO task_assignees (task_id, user_id) VALUES ($1, $2)",
-          [task.id, userId]
+          [
+            task.id,
+            requireUserId(
+              userId,
+              userIds,
+              `tasks[${index}].assignedTo[${assigneeIndex}]`
+            ),
+          ]
         );
       }
     }
 
-    for (const lead of state.leads || []) {
+    const leads = Array.isArray(state.leads) ? state.leads : [];
+    for (const [index, lead] of leads.entries()) {
       await client.query(
         `
           INSERT INTO leads (id, club_id, name, phone, email, source, status, notes, created_at)
@@ -643,7 +765,7 @@ export async function writeState(clubId, state, expectedVersion) {
           lead.id,
           clubId,
           lead.name,
-          lead.phone,
+          validatePhone(lead.phone, `leads[${index}].phone`, { required: true }),
           lead.email ?? null,
           lead.source,
           lead.status,
@@ -676,7 +798,8 @@ export async function writeState(clubId, state, expectedVersion) {
       );
     }
 
-    for (const event of state.events || []) {
+    const events = Array.isArray(state.events) ? state.events : [];
+    for (const [eventIndex, event] of events.entries()) {
       await client.query(
         `
           INSERT INTO sea_events (id, club_id, name, event_date, google_form_link, is_archived)
@@ -692,17 +815,30 @@ export async function writeState(clubId, state, expectedVersion) {
         ]
       );
 
-      for (const boat of event.boats || []) {
+      for (const [boatIndex, boat] of (event.boats || []).entries()) {
         await client.query(
           `
             INSERT INTO event_boats (id, event_id, operator_id, assistant_id)
             VALUES ($1,$2,$3,$4)
           `,
-          [boat.id, event.id, boat.operatorId, boat.assistantId]
+          [
+            boat.id,
+            event.id,
+            requireUserId(
+              boat.operatorId,
+              userIds,
+              `events[${eventIndex}].boats[${boatIndex}].operatorId`
+            ),
+            resolveOptionalUserId(
+              boat.assistantId,
+              userIds,
+              `events[${eventIndex}].boats[${boatIndex}].assistantId`
+            ),
+          ]
         );
       }
 
-      for (const p of event.participants || []) {
+      for (const [participantIndex, p] of (event.participants || []).entries()) {
         await client.query(
           `
             INSERT INTO event_participants (
@@ -714,7 +850,10 @@ export async function writeState(clubId, state, expectedVersion) {
             p.id,
             event.id,
             p.name,
-            p.phone,
+            validatePhone(
+              p.phone,
+              `events[${eventIndex}].participants[${participantIndex}].phone`
+            ) ?? "",
             p.equipment,
             p.status,
             !!p.hasArrived,

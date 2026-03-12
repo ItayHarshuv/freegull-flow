@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { useAppStore } from '../../store';
 import { Task, TaskType } from '../../types';
 import { CheckCircle, Circle, Plus, Search, Mail, Package, Check, UserPlus, Archive, Layers, User, Phone, Briefcase, DollarSign, Filter, ShoppingBag } from 'lucide-react';
+import { isValidOptionalPhone, normalizePhoneInput, PHONE_VALIDATION_MESSAGE } from '../../utils/phone';
 
 const TasksModule: React.FC = () => {
   const { tasks, users, currentUser, addTask, updateTaskStatus } = useAppStore();
@@ -60,16 +61,20 @@ const TasksModule: React.FC = () => {
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTask.title) return;
+    if (!isValidOptionalPhone(newTask.clientPhone)) {
+      alert(PHONE_VALIDATION_MESSAGE);
+      return;
+    }
     const task: Task = {
         id: Math.random().toString(36).substr(2, 9),
         title: newTask.title,
         type: newTask.type,
         clientName: newTask.clientName,
-        clientPhone: newTask.clientPhone,
+        clientPhone: normalizePhoneInput(newTask.clientPhone) || undefined,
         assignedTo: newTask.assignedTo,
         priority: newTask.priority,
         status: 'Pending',
-        createdBy: currentUser?.name || 'עובד מועדון',
+        createdBy: currentUser?.id || '',
         createdAt: new Date().toISOString()
     };
     addTask(task);
@@ -192,6 +197,8 @@ const TasksModule: React.FC = () => {
                        <input 
                           placeholder="טלפון ליצירת קשר" 
                           className="p-3 bg-white border border-blue-200 rounded-xl font-bold text-sm outline-none focus:border-blue-500 text-right tabular-nums" 
+                          inputMode="tel"
+                          title={PHONE_VALIDATION_MESSAGE}
                           value={newTask.clientPhone} 
                           onChange={e => setNewTask({...newTask, clientPhone: e.target.value})} 
                        />
@@ -284,6 +291,7 @@ const TasksModule: React.FC = () => {
           ) : (
             filteredTasks.map(task => {
                const canEdit = canUpdateStatus(task);
+               const creatorName = users.find(user => user.id === task.createdBy)?.name || task.createdBy;
                return (
                  <div key={task.id} className={`bg-white p-4 md:p-8 rounded-[2rem] border transition-all flex flex-col md:flex-row gap-6 hover:shadow-lg ${task.status === 'Done' ? 'border-slate-100 opacity-80' : 'border-slate-200 shadow-sm'}`}>
                     
@@ -354,7 +362,7 @@ const TasksModule: React.FC = () => {
                                 )
                              }) : <span className="text-xs text-slate-400 italic">לא שויך</span>}
                           </div>
-                          <span className="text-[10px] text-slate-400 font-bold">נוצר ע"י {task.createdBy}</span>
+                          <span className="text-[10px] text-slate-400 font-bold">נוצר ע"י {creatorName}</span>
                        </div>
                     </div>
 

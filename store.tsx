@@ -104,6 +104,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const localMutationVersionRef = useRef(0);
   const requestIdRef = useRef(0);
   const latestStateRef = useRef(INITIAL_STATE);
+  const autoSyncPausedRef = useRef(false);
 
   useEffect(() => {
     latestStateRef.current = state;
@@ -111,6 +112,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const markDataDirty = useCallback(() => {
     localMutationVersionRef.current += 1;
+    autoSyncPausedRef.current = false;
     isDataDirtyRef.current = true;
     setIsDataDirty(true);
   }, []);
@@ -186,14 +188,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const expectedVersion = serverVersionRef.current;
     const requestId = ++requestIdRef.current;
     let shouldRetry = false;
+    const requestBody = { state: pureData, expectedVersion };
     
     try {
       console.log('[SYNC_PUSH_START]', { requestId, expectedVersion, mutationVersionAtSchedule, clubId: clubIdRef.current });
+      console.log('[SYNC_PUSH_BODY]', requestBody);
       const res = await fetch(`${API_BASE_URL}/state/${clubIdRef.current}`, {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ state: pureData, expectedVersion })
+        body: JSON.stringify(requestBody)
       });
       if (res.status === 409) {
         const conflictBody = await res.json().catch(() => ({}));
@@ -211,7 +215,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return;
       }
       if (!res.ok) {
-        throw new Error(`Push failed with status ${res.status}`);
+        const errorBody = await res.text().catch(() => '');
+        throw new Error(`Push failed with status ${res.status}${errorBody ? `: ${errorBody}` : ''}`);
       }
       const pushPayload = await res.json();
       const pushedVersion = Number(pushPayload?.serverVersion ?? expectedVersion);
@@ -220,7 +225,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       console.log('[SYNC_PUSH_SUCCESS]', { requestId, expectedVersion, pushedVersion, mutationVersionAtSchedule });
       setState(prev => ({ ...prev, syncStatus: 'synced' }));
     } catch (e) {
-      console.error('Push failed', e);
+      autoSyncPausedRef.current = true;
+      console.error('Push failed', e, requestBody);
       setState(prev => ({ ...prev, syncStatus: 'error' }));
     } finally {
       isUpdatingCloud.current = false;
@@ -276,6 +282,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return;
     }
     if (!isDataDirty) return;
+    if (autoSyncPausedRef.current) return;
     const mutationVersionAtSchedule = localMutationVersionRef.current;
     const timeout = setTimeout(() => push(state, mutationVersionAtSchedule), 1000);
     return () => clearTimeout(timeout);
@@ -419,6 +426,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addWhatsAppTemplate, updateWhatsAppTemplate, deleteWhatsAppTemplate,
     addKnowledgeFile, deleteKnowledgeFile,
     syncNow: () => {
+      autoSyncPausedRef.current = false;
+      if (isDataDirtyRef.current) {
+        void push(latestStateRef.current, localMutationVersionRef.current, false);
+        return;
+      }
       void pull({ force: true });
     },
     startTour: () => setState(p => ({ ...p, isTourActive: true })),

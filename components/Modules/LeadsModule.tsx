@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useAppStore } from '../../store';
 import { Lead, LeadStatus, LeadSource } from '../../types';
 import { MessageCircle, Mail, Plus, Trash2, Edit2, Phone, User, Globe, Users, Save, X, ExternalLink, Filter } from 'lucide-react';
+import { isValidPhone, normalizePhoneInput, PHONE_VALIDATION_MESSAGE } from '../../utils/phone';
 
 const LeadsModule: React.FC = () => {
   const { leads, addLead, updateLead, deleteLead } = useAppStore();
@@ -46,17 +47,25 @@ const LeadsModule: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name) return;
+    if (!isValidPhone(formData.phone)) {
+      alert(PHONE_VALIDATION_MESSAGE);
+      return;
+    }
+
+    const normalizedPhone = normalizePhoneInput(formData.phone);
 
     if (editingId) {
       updateLead({
         id: editingId,
         ...formData,
+        phone: normalizedPhone,
         createdAt: leads.find(l => l.id === editingId)?.createdAt || new Date().toISOString()
       });
     } else {
       addLead({
         id: Math.random().toString(36).substr(2, 9),
         ...formData,
+        phone: normalizedPhone,
         createdAt: new Date().toISOString()
       });
     }
@@ -250,7 +259,7 @@ const LeadsModule: React.FC = () => {
                   <div className="grid grid-cols-2 gap-4">
                      <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase text-slate-400 mr-2 tracking-widest">טלפון</label>
-                        <input required className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-right outline-none focus:ring-2 focus:ring-brand tabular-nums" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+                        <input required inputMode="tel" title={PHONE_VALIDATION_MESSAGE} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-right outline-none focus:ring-2 focus:ring-brand tabular-nums" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
                      </div>
                      <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase text-slate-400 mr-2 tracking-widest">אימייל</label>

@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { z } from 'zod';
+import { ZodError, z } from 'zod';
 
 const AUTH_COOKIE_NAME = 'freegull_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 14;
@@ -123,6 +123,34 @@ const app = new Hono<{ Variables: { auth: AuthContext } }>();
 
 app.onError((error, c) => {
   console.error(error);
+  if (error instanceof ZodError) {
+    return c.json(
+      {
+        error: 'Validation failed',
+        issues: error.issues.map((issue) => ({
+          path: issue.path.join('.'),
+          message: issue.message,
+          code: issue.code,
+        })),
+      },
+      400
+    );
+  }
+  if (error instanceof Error && error.name === 'StateValidationError') {
+    return c.json(
+      {
+        error: 'Validation failed',
+        issues: [
+          {
+            path: (error as Error & { path?: string }).path || '',
+            message: error.message,
+            code: 'custom',
+          },
+        ],
+      },
+      400
+    );
+  }
   return c.json({ error: 'Internal Server Error' }, 500);
 });
 
@@ -408,7 +436,9 @@ app.put('/state/:clubId', requireAuth, async (c) => {
   const denied = enforceClubAccess(c, clubId);
   if (denied) return denied;
 
-  const parsed = stateSchema.parse(await c.req.json());
+  const requestBody = await c.req.json();
+  console.log('[STATE_PUT_REQUEST_BODY]', { clubId, body: requestBody });
+  const parsed = stateSchema.parse(requestBody);
   const { StateVersionConflictError, readStateWithVersion, writeState } = await getLegacyStateRepositoryModule();
 
   try {

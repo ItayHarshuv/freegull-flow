@@ -79,9 +79,23 @@ If you also want to remove database volume data:
 
 ## TODO
 [ ] random refrshes
-[ ] lessons, creating event, creating a task - gives bad request
-[ ] in rentals - it shows paid even when it is not
-[ ] events doesnt show the people in primary operator.
+[ ] overall responsiveness
+[x] creating lessons, creating event, creating a task - gives bad request
 [ ] make the tables in payrollopenable and closed
 [ ] in knowledge page, it doesnt really upload anything
 [ ] maintenance page necesery?
+
+### Rentals page
+[ ] it shows paid even when it is not
+
+### events page
+[ ] make the list of the events stack over another showing only the name of the event and the date. when pressing it expands to show all of the info
+
+###tasks page
+[ ] make a button "סמן כבוצע ושמור", and סמן כלא בוצא in the archive
+[ ] send email button trigers with popup massage showing the potential recipiensto approve the sending of the emails 
+[ ] 
+
+### availability page
+
+[ ] A component is changing an uncontrolled input to be controlled.

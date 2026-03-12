@@ -3,6 +3,7 @@ import React, { useState, useRef } from 'react';
 import { useAppStore } from '../../store';
 import { Role, Certification, User } from '../../types';
 import { UserPlus, Edit2, X, Archive, Save, Star, Banknote, FileCheck, Upload, Download, FileText, Building2, Key } from 'lucide-react';
+import { isValidOptionalPhone, normalizePhoneInput, PHONE_VALIDATION_MESSAGE } from '../../utils/phone';
 
 const CERTS: Certification[] = [
   'גלישת גלים', 'סאפ', 'גלישת רוח', 'גלישת כנף', 'קטמרן', 'גלישת קייט', 'מפעיל סירת חילוץ'
@@ -62,9 +63,14 @@ const AdminModule: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isValidOptionalPhone(formData.phone)) {
+      alert(PHONE_VALIDATION_MESSAGE);
+      return;
+    }
     const userData: User = {
       id: editingId || Math.random().toString(36).substr(2, 9),
       ...formData,
+      phone: normalizePhoneInput(formData.phone),
       isArchived: false
     };
     if (editingId) updateUser(userData);
@@ -151,7 +157,7 @@ const AdminModule: React.FC = () => {
                 <h4 className="text-xs font-black text-brand-ocean uppercase tracking-widest border-b border-slate-100 pb-2">פרטים אישיים</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <input required className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-right shadow-inner" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="שם מלא" />
-                  <input className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-right shadow-inner" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder="טלפון" />
+                  <input inputMode="tel" title={PHONE_VALIDATION_MESSAGE} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-right shadow-inner" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder="טלפון" />
                   <input required className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-right shadow-inner" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="אימייל להתחברות" />
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-brand uppercase mr-2 tracking-widest">קוד גישה מהיר (PIN)</label>
