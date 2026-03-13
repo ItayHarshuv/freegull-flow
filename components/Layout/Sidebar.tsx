@@ -5,7 +5,7 @@ import { useAppStore } from '../../store';
 import { 
   Users, Calendar, Clock, ClipboardList, 
   LifeBuoy, LogOut, CheckSquare, LayoutDashboard, 
-  BookOpen, FileText, UserCircle, X, Waves, RefreshCcw, Anchor, Banknote, Users2, Settings, Info
+  BookOpen, FileText, UserCircle, X, Waves, RefreshCcw, Anchor, Banknote, Users2, Info
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -36,7 +36,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, closeMobile }) => {
     { id: 'club_info', label: 'מידע על המועדון', icon: Info, allowed: ['Shop Computer', 'Site Editor', 'Manager', 'Shift Manager'] },
     { id: 'knowledge', label: 'חומר מקצועי', icon: FileText, allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Shop Computer'] },
     { id: 'admin', label: 'ניהול צוות', icon: Users, allowed: ['Site Editor', 'Manager'] },
-    { id: 'maintenance', label: 'תחזוקת אתר', icon: Settings, allowed: ['Site Editor', 'Manager'] },
   ];
 
   const filteredMenu = menuItems.filter(item => item.allowed.includes(currentUser.role));

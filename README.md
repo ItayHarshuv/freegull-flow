@@ -82,7 +82,6 @@ If you also want to remove database volume data:
 [x] overall responsiveness
 [x] creating lessons, creating event, creating a task - gives bad request
 [x] make the tables in payroll openable and closed
-[ ] in knowledge page, it doesnt really upload anything
 [ ] maintenance page necesery?
 
 ### Rentals page
@@ -107,3 +106,7 @@ This will cause a hydration error.
 
 ### Daily work page
 [ ] instraction hours are not saves when exiting the page
+
+### knowledge page
+[ ] in knowledge page, it doesnt really upload anything + file cards UI
+

@@ -18,7 +18,6 @@ import EmployeeModule from './components/Modules/EmployeeModule';
 import KnowledgeModule from './components/Modules/KnowledgeModule';
 import EventsModule from './components/Modules/EventsModule';
 import PayrollModule from './components/Modules/PayrollModule';
-import MaintenanceModule from './components/Modules/MaintenanceModule';
 import ClubInfoModule from './components/Modules/ClubInfoModule';
 import { Menu, Waves, Cloud, CloudOff, RefreshCw } from 'lucide-react';
 
@@ -97,7 +96,6 @@ const DashboardContent: React.FC = () => {
               <Route path="/admin" element={<AdminModule />} />
               <Route path="/events" element={<EventsModule />} />
               <Route path="/payroll" element={<PayrollModule />} />
-              <Route path="/maintenance" element={<MaintenanceModule />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </div>
