@@ -110,9 +110,9 @@ const KnowledgeModule: React.FC = () => {
           <div className="space-y-5">
             {whatsappTemplates.map((template) => (
               <div key={template.id} className="bg-white p-7 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-all flex flex-col gap-5">
-                <div className="flex justify-between items-center flex-row-reverse">
-                  <span className="text-lg font-black text-slate-900">{template.title}</span>
-                  <div className="flex items-center gap-2">
+                <div className="w-full flex flex-col items-end gap-3 text-right">
+                  <span className="w-full text-lg font-black text-slate-900 text-right">{template.title}</span>
+                  <div className="w-full flex flex-row-reverse items-center gap-2 flex-wrap justify-start">
                     {isAuthorized && (
                       <>
                         <button 
@@ -163,17 +163,17 @@ const KnowledgeModule: React.FC = () => {
           
           <div className="space-y-4">
             {knowledgeFiles.map((file) => (
-              <div key={file.id} className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center justify-between group hover:border-blue-500 transition-all flex-row-reverse">
-                <div className="flex items-center gap-5 flex-row-reverse">
+              <div key={file.id} className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center justify-between group hover:border-blue-500 transition-all flex-row-reverse flex-wrap gap-4">
+                <div className="flex items-center gap-5 flex-row-reverse min-w-0 flex-1">
                   <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-xs shadow-inner">
                     {file.type}
                   </div>
-                  <div className="text-right">
-                    <h4 className="text-lg font-black text-slate-900 leading-tight">{file.name}</h4>
+                  <div className="text-right min-w-0">
+                    <h4 className="text-lg font-black text-slate-900 leading-tight break-words">{file.name}</h4>
                     <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{file.size}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap justify-start sm:justify-end w-full sm:w-auto">
                   <button 
                     onClick={() => handlePrint(file)}
                     className="p-3.5 bg-slate-100 text-slate-600 hover:bg-slate-900 hover:text-white rounded-xl transition-all shadow-sm flex items-center gap-2 border border-slate-200"
