@@ -1,13 +1,14 @@
 
 import React, { useState, useMemo } from 'react';
 import { useAppStore } from '../../store';
-import { User, Search, FileSpreadsheet, ChevronRight, ChevronLeft, Download, FileText } from 'lucide-react';
+import { Search, FileSpreadsheet, ChevronRight, ChevronLeft, ChevronDown, Download, FileText } from 'lucide-react';
 
 const PayrollModule: React.FC = () => {
   const { shifts, users } = useAppStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [openTables, setOpenTables] = useState<Record<string, boolean>>({});
 
   const monthNames = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
 
@@ -89,6 +90,14 @@ const PayrollModule: React.FC = () => {
     setSelectedYear(newYear);
   };
 
+  const toggleTable = (userId: string | number) => {
+    const payrollKey = String(userId);
+    setOpenTables(current => ({
+      ...current,
+      [payrollKey]: !current[payrollKey]
+    }));
+  };
+
   return (
     <div className="space-y-6 md:space-y-8 max-w-7xl mx-auto text-right animate-fade-in px-2" dir="rtl">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 px-1">
@@ -115,9 +124,12 @@ const PayrollModule: React.FC = () => {
       </div>
 
       <div className="grid gap-8 px-1">
-        {payrollData.map(data => (
+        {payrollData.map(data => {
+          const isTableOpen = openTables[String(data.user.id)] ?? false;
+
+          return (
           <div key={data.user.id} className="bg-white rounded-[2rem] border-2 border-slate-100 shadow-xl overflow-hidden hover:border-brand transition-all group">
-            <div className="p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 border-b border-slate-50 bg-slate-50/20">
+            <div className={`p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 bg-slate-50/20 ${isTableOpen ? 'border-b border-slate-50' : ''}`}>
               <div className="flex items-center gap-5 flex-row-reverse w-full md:w-auto">
                 <div className="w-16 h-16 rounded-2xl brand-gradient text-white flex items-center justify-center font-black text-2xl shadow-lg shrink-0">
                   {data.user.name.charAt(0)}
@@ -151,6 +163,15 @@ const PayrollModule: React.FC = () => {
               </div>
 
               <div className="flex gap-2 w-full md:w-auto">
+                 <button
+                   type="button"
+                   onClick={() => toggleTable(data.user.id)}
+                   aria-expanded={isTableOpen}
+                   className="flex-1 md:flex-none bg-white text-slate-700 px-5 py-4 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm"
+                 >
+                   <ChevronDown size={18} className={`transition-transform ${isTableOpen ? 'rotate-180' : ''}`} />
+                   {isTableOpen ? 'סגור פירוט' : 'פתח פירוט'}
+                 </button>
                  {data.user.hasForm101 && (
                     <button 
                       onClick={() => download101(data.user)}
@@ -170,6 +191,7 @@ const PayrollModule: React.FC = () => {
               </div>
             </div>
 
+            {isTableOpen && (
             <div className="p-4 md:p-8 overflow-x-auto scroll-hint">
                <table className="w-full text-sm text-right min-w-[600px]">
                   <thead className="text-[10px] font-black text-slate-400 uppercase border-b border-slate-100">
@@ -194,8 +216,9 @@ const PayrollModule: React.FC = () => {
                   </tbody>
                </table>
             </div>
+            )}
           </div>
-        ))}
+        )})}
       </div>
     </div>
   );

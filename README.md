@@ -81,7 +81,7 @@ If you also want to remove database volume data:
 [ ] random refrshes
 [x] overall responsiveness
 [x] creating lessons, creating event, creating a task - gives bad request
-[ ] make the tables in payroll openable and closed
+[x] make the tables in payroll openable and closed
 [ ] in knowledge page, it doesnt really upload anything
 [ ] maintenance page necesery?
 
