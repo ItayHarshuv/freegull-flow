@@ -5,18 +5,6 @@ import { AppState, User, Shift, Lesson, Rental, Task, Availability, ConfirmedShi
 const API_BASE_URL = ((import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:4000').replace(/\/+$/, '');
 const SYNC_INTERVAL_MS = 5000;
 
-async function readJsonResponse(res: Response) {
-  const contentType = res.headers.get('content-type') || '';
-  if (!contentType.includes('application/json')) {
-    const body = await res.text().catch(() => '');
-    throw new Error(
-      `Expected JSON from ${res.url || 'request'} but received ${contentType || 'unknown content type'}${body ? `: ${body.slice(0, 120)}` : ''}`
-    );
-  }
-
-  return res.json();
-}
-
 const INITIAL_CLUB_SETTINGS: ClubSettings = {
   landline: '09-8651474',
   mobile: '052-4383707',
@@ -166,7 +154,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         credentials: 'include'
       });
       if (res.ok) {
-        const cloudPayload = await readJsonResponse(res);
+        const cloudPayload = await res.json();
         const serverVersion = Number(cloudPayload?.serverVersion ?? 0);
         const { serverVersion: _serverVersion, ...cloudData } = cloudPayload || {};
         const nextClubId = cloudData.clubId || clubIdRef.current;
@@ -230,7 +218,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const errorBody = await res.text().catch(() => '');
         throw new Error(`Push failed with status ${res.status}${errorBody ? `: ${errorBody}` : ''}`);
       }
-      const pushPayload = await readJsonResponse(res);
+      const pushPayload = await res.json();
       const pushedVersion = Number(pushPayload?.serverVersion ?? expectedVersion);
       serverVersionRef.current = pushedVersion;
       clearDataDirty();
@@ -259,7 +247,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           credentials: 'include'
         });
         if (res.ok) {
-          const payload = await readJsonResponse(res);
+          const payload = await res.json();
           setState(prev => ({
             ...prev,
             currentUser: payload?.user || null,
@@ -309,7 +297,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         body: JSON.stringify({ clubId: clubIdRef.current, identifier: id })
       });
       if (!res.ok) return false;
-      const payload = await readJsonResponse(res);
+      const payload = await res.json();
       const user = payload?.user || null;
       if (!user) return false;
       setState(prev => ({ ...prev, currentUser: user, authHydrated: true, isEditorMode: false }));

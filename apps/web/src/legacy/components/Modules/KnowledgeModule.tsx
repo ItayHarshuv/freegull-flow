@@ -112,7 +112,7 @@ const KnowledgeModule: React.FC = () => {
               <div key={template.id} className="bg-white p-7 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-all flex flex-col gap-5">
                 <div className="w-full flex flex-col items-end gap-3 text-right">
                   <span className="w-full text-lg font-black text-slate-900 text-right">{template.title}</span>
-                  <div className="w-full flex flex-row-reverse items-center gap-2 flex-wrap justify-start">
+                  <div className="w-full flex flex-row-reverse items-center gap-2 flex-wrap justify-end">
                     {isAuthorized && (
                       <>
                         <button 

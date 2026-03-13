@@ -12,6 +12,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "sync:web-legacy": "node scripts/sync-web-legacy.mjs",
     "dev:web": "corepack pnpm --filter @freegull-flow/web dev",
     "dev:api": "corepack pnpm --filter @freegull-flow/api dev",
     "build:web": "corepack pnpm --filter @freegull-flow/web build",

@@ -79,7 +79,7 @@ const RentalCard: React.FC<{ rental: Rental; onFinishRental: (rental: Rental) =>
             onClick={() => onFinishRental(rental)}
             className="flex-1 flex items-center justify-center gap-3 p-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-900 hover:text-white active:scale-95 shadow-sm"
           >
-            <Circle size={16} /> סיום השכרה והחזרת ציוד
+            סיום השכרה והחזרת ציוד
           </button>
         )}
 
@@ -483,7 +483,7 @@ const RentalsModule: React.FC = () => {
               <div>
                 <h3 className="text-2xl font-black text-slate-900">אישור החזרת ציוד</h3>
                 <p className="mt-3 text-base font-bold text-slate-600 leading-relaxed">
-                  {`האם ${pendingReturnRental.clientName} החזיר ${pendingReturnRental.item} X${pendingReturnRental.quantity}?`}
+                  {`האם ${pendingReturnRental.clientName} החזיר ${pendingReturnRental.quantity} ${pendingReturnRental.item} ?`}
                 </p>
               </div>
               <button
