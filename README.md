@@ -82,14 +82,13 @@ If you also want to remove database volume data:
 [x] overall responsiveness
 [x] creating lessons, creating event, creating a task - gives bad request
 [x] make the tables in payroll openable and closed
-[ ] maintenance page necesery?
+[x] maintenance page necesery?
 
 ### Rentals page
-[ ] it shows paid even when it is not
-[ ] hide equtment availability button togle if archive is on
-[ ] RentalsModule.tsx:233 In HTML, <button> cannot be a descendant of <button>.
+[x] hide equtment availability button togle if archive is on
+[x] RentalsModule.tsx:233 In HTML, <button> cannot be a descendant of <button>.
 This will cause a hydration error.
-[ ] Make active rentals card visible more pleasent
+[ ] Archive UI doesnt work on mobile width
 
 
 ### events page

@@ -411,10 +411,11 @@ async function readStateTx(client, clubId) {
         item: r.item,
         quantity: r.quantity,
         durationMinutes: r.duration_minutes,
+        overdueMinutes: r.overdue_minutes ?? undefined,
         paymentType: r.payment_type,
         startTime: r.start_time,
         isReturned: r.is_returned,
-        extraPaid: r.extra_paid,
+        extraPaid: r.extra_paid ?? null,
         isArchived: r.is_archived ?? undefined,
       })),
       tasks: tasksRes.rows.map((t) => ({
@@ -689,9 +690,9 @@ export async function writeState(clubId, state, expectedVersion) {
         `
           INSERT INTO rentals (
             id, club_id, rental_date, client_name, item, quantity, duration_minutes,
-            payment_type, start_time, is_returned, extra_paid, is_archived
+            overdue_minutes, payment_type, start_time, is_returned, extra_paid, is_archived
           )
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
         `,
         [
           rental.id,
@@ -701,10 +702,11 @@ export async function writeState(clubId, state, expectedVersion) {
           rental.item,
           rental.quantity,
           rental.durationMinutes,
+          rental.overdueMinutes ?? null,
           rental.paymentType,
           rental.startTime,
           !!rental.isReturned,
-          !!rental.extraPaid,
+          rental.extraPaid ?? null,
           rental.isArchived ?? null,
         ]
       );

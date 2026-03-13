@@ -119,6 +119,7 @@ CREATE TABLE IF NOT EXISTS rentals (
   item TEXT NOT NULL,
   quantity INTEGER NOT NULL DEFAULT 1,
   duration_minutes INTEGER NOT NULL DEFAULT 0,
+  overdue_minutes INTEGER,
   payment_type TEXT NOT NULL,
   start_time TEXT NOT NULL,
   is_returned BOOLEAN NOT NULL DEFAULT FALSE,

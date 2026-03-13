@@ -1,0 +1,2 @@
+ALTER TABLE rentals
+ADD COLUMN IF NOT EXISTS overdue_minutes INTEGER;

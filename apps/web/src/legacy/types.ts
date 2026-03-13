@@ -147,10 +147,11 @@ export interface Rental {
   item: string;
   quantity: number;
   durationMinutes: number;
+  overdueMinutes?: number;
   paymentType: 'paid' | 'not-paid' | 'subscription-card';
   startTime: string; 
   isReturned: boolean;
-  extraPaid: boolean;
+  extraPaid: boolean | null;
   isArchived?: boolean;
 }
 
