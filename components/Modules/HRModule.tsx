@@ -1,11 +1,19 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../../store';
 import { Shift, BonusItem } from '../../types';
-import { Plus, Minus, Download, Edit2, Clock, DollarSign, Save, LogOut, X, Car, Check, Trash2 } from 'lucide-react';
+import { Download, Edit2, Clock, DollarSign, Save, LogOut, X, Car, Check, Trash2, PauseCircle, PlayCircle, TimerReset } from 'lucide-react';
+
+const getDisplayedBreakMinutes = (activeShift: any, now: number) => {
+  const accumulated = activeShift?.accumulatedBreakMinutes ?? 0;
+  if (!activeShift?.isOnBreak || !activeShift?.breakStartedAt) {
+    return accumulated;
+  }
+  return accumulated + Math.max(0, Math.round((now - new Date(activeShift.breakStartedAt).getTime()) / 60000));
+};
 
 const HRModule: React.FC = () => {
-  const { shifts, currentUser, activeShift, startShift, endShift, updateShift } = useAppStore();
+  const { shifts, currentUser, activeShift, startShift, startBreak, endBreak, endShift, updateShift } = useAppStore();
   const [editingShift, setEditingShift] = useState<Shift | null>(null);
 
   const startTimeRef = useRef<HTMLInputElement>(null);
@@ -16,6 +24,15 @@ const HRModule: React.FC = () => {
   const [notes, setNotes] = useState('');
   const [bonuses, setBonuses] = useState<BonusItem[]>([]);
   const [newBonus, setNewBonus] = useState({ clientName: '', item: '', amount: '' });
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!activeShift?.isOnBreak) return;
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, [activeShift?.isOnBreak]);
+
+  const displayedBreakMinutes = activeShift ? getDisplayedBreakMinutes(activeShift, now) : 0;
 
   const handleAddBonus = () => {
     if (!newBonus.clientName || !newBonus.amount) return;
@@ -53,12 +70,13 @@ const HRModule: React.FC = () => {
   };
 
   const exportToExcel = () => {
-    const headers = ['תאריך', 'שם עובד', 'כניסה', 'יציאה', 'שעות הדרכה', 'בונוסים', 'הערות'];
+    const headers = ['תאריך', 'שם עובד', 'כניסה', 'יציאה', 'דקות הפסקה', 'שעות הדרכה', 'בונוסים', 'הערות'];
     const rows = shifts.map(s => [
       new Date(s.date).toLocaleDateString(),
       s.userName,
       s.startTime,
       s.endTime,
+      s.breakMinutes,
       s.teachingHours,
       s.bonuses.reduce((acc, b) => acc + b.amount, 0),
       s.notes
@@ -137,6 +155,36 @@ const HRModule: React.FC = () => {
                 <div className="text-2xl font-black tabular-nums text-brand-ocean">
                   {new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                 </div>
+             </div>
+
+             <div className="bg-amber-50 border border-amber-200 rounded-[2rem] p-6 space-y-5">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                   <div className="text-right">
+                      <div className="flex items-center gap-3 flex-row-reverse text-amber-900 font-black">
+                         <TimerReset size={20} />
+                         <span>ניהול הפסקות</span>
+                      </div>
+                      <p className="text-sm text-amber-800/80 font-bold mt-2">
+                        המשמרת נשארת פתוחה בזמן ההפסקה, והדקות נשמרות אוטומטית בסגירת המשמרת.
+                      </p>
+                   </div>
+                   <div className="bg-white rounded-[1.5rem] border border-amber-200 px-6 py-4 text-center min-w-[160px]">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-amber-700">דקות הפסקה</div>
+                      <div className="text-3xl font-black text-amber-900 tabular-nums mt-2">{displayedBreakMinutes}</div>
+                   </div>
+                </div>
+
+                <button
+                  onClick={activeShift.isOnBreak ? endBreak : startBreak}
+                  className={`w-full md:w-auto px-8 py-4 rounded-[1.5rem] font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 transition-all active:scale-95 ${
+                    activeShift.isOnBreak
+                      ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                      : 'bg-amber-500 text-white hover:bg-amber-600'
+                  }`}
+                >
+                  {activeShift.isOnBreak ? <PlayCircle size={20} /> : <PauseCircle size={20} />}
+                  {activeShift.isOnBreak ? 'חזרה למשמרת' : 'יציאה להפסקה'}
+                </button>
              </div>
 
              <div className="grid md:grid-cols-2 gap-10 text-right">
@@ -228,6 +276,7 @@ const HRModule: React.FC = () => {
                  <th className="p-6">תאריך</th>
                  <th className="p-6">עובד</th>
                  <th className="p-6">שעות</th>
+                 <th className="p-6">הפסקה</th>
                  <th className="p-6">הדרכה</th>
                  <th className="p-6">בונוס</th>
                  <th className="p-6 text-left">פעולות</th>
@@ -244,6 +293,11 @@ const HRModule: React.FC = () => {
                     </div>
                   </td>
                   <td className="p-6 font-black text-slate-700 tabular-nums">{shift.startTime} - {shift.endTime || 'פעיל'}</td>
+                  <td className="p-6">
+                    <span className="bg-amber-50 text-amber-700 px-3 py-1 rounded-lg font-black text-[10px] uppercase tabular-nums shadow-sm">
+                      {shift.breakMinutes || 0} דק'
+                    </span>
+                  </td>
                   <td className="p-6">
                      <span className="bg-blue-600 text-white px-3 py-1 rounded-lg font-black text-[10px] uppercase tabular-nums shadow-sm">{shift.teachingHours} ש'</span>
                   </td>
@@ -339,6 +393,18 @@ const HRModule: React.FC = () => {
                         {editingShift.hasTravel ? <Check size={16} strokeWidth={4} /> : <X size={16} />}
                      </button>
                   </div>
+               </div>
+
+               <div className="space-y-2">
+                  <label className="text-[10px] uppercase font-black text-slate-600 block mr-1 tracking-widest">דקות הפסקה</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white text-right"
+                    value={editingShift.breakMinutes}
+                    onChange={e => setEditingShift({ ...editingShift, breakMinutes: Math.max(0, Number(e.target.value) || 0) })}
+                  />
                </div>
 
                <button type="submit" className="w-full bg-slate-900 text-white py-5 rounded-[2rem] font-black text-sm uppercase tracking-widest shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all">

@@ -30,6 +30,7 @@ erDiagram
 ## Notes
 
 - `club_id` is present across business tables to support multi-club isolation.
+- `shifts.break_minutes` stores the total break time for a closed shift in whole minutes.
 - `rentals.overdue_minutes` stores extra minutes beyond the planned rental duration when applicable.
 - Join tables normalize arrays from the current state model:
   - `user_certifications`

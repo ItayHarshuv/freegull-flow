@@ -24,6 +24,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, closeMobile }) => {
   const menuItems = [
     { id: 'dashboard', label: 'לוח בקרה', icon: LayoutDashboard, allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Warehouse', 'Shop Computer'] },
     { id: 'daily_work', label: 'יום עבודה', icon: Clock, allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Warehouse'] },
+    { id: 'my_hours', label: 'שעות העבודה שלי', icon: Clock, allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Warehouse', 'Shop Computer'] },
     { id: 'calendar', label: 'יומן ושיבוץ', icon: Calendar, allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Shop Computer'] },
     { id: 'lessons', label: 'ניהול שיעורים', icon: BookOpen, allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Shop Computer'] },
     { id: 'rentals', label: 'השכרות ציוד', icon: LifeBuoy, allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Shop Computer'] },

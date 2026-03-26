@@ -176,6 +176,13 @@ export interface Shift {
   notes: string;
   isClosed: boolean;
   hasTravel: boolean;
+  breakMinutes: number;
+}
+
+export interface ActiveShift extends Partial<Shift> {
+  accumulatedBreakMinutes?: number;
+  breakStartedAt?: string | null;
+  isOnBreak?: boolean;
 }
 
 export interface ConfirmedShift {
@@ -220,7 +227,7 @@ export interface AppState {
   availableRentalItems: string[];
   whatsappTemplates: WhatsAppTemplate[];
   knowledgeFiles: KnowledgeFile[];
-  activeShifts: Record<string, Partial<Shift>>;
+  activeShifts: Record<string, ActiveShift>;
   clubSettings: ClubSettings;
   lastSyncTime: string;
   syncStatus: 'synced' | 'syncing' | 'error';

@@ -376,6 +376,7 @@ async function readStateTx(client, clubId) {
         notes: s.notes,
         isClosed: s.is_closed,
         hasTravel: s.has_travel,
+        breakMinutes: Number(s.break_minutes ?? 0),
       })),
       activeShifts,
       confirmedShifts: confirmedShiftsRes.rows.map((s) => ({
@@ -585,9 +586,9 @@ export async function writeState(clubId, state, expectedVersion) {
         `
           INSERT INTO shifts (
             id, club_id, user_id, user_name, shift_date, start_time, end_time,
-            teaching_hours, notes, is_closed, has_travel
+            teaching_hours, notes, is_closed, has_travel, break_minutes
           )
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
         `,
         [
           shift.id,
@@ -601,6 +602,7 @@ export async function writeState(clubId, state, expectedVersion) {
           shift.notes ?? "",
           !!shift.isClosed,
           !!shift.hasTravel,
+          shift.breakMinutes ?? 0,
         ]
       );
 

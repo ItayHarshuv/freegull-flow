@@ -56,11 +56,12 @@ const PayrollModule: React.FC = () => {
   };
 
   const exportEmployeeReport = (data: any) => {
-    const headers = ['תאריך', 'כניסה', 'יציאה', 'שעות הדרכה', 'בונוסים', 'נסיעות', 'הערות'];
+    const headers = ['תאריך', 'כניסה', 'יציאה', 'דקות הפסקה', 'שעות הדרכה', 'בונוסים', 'נסיעות', 'הערות'];
     const rows = data.shifts.map((s: any) => [
       new Date(s.date).toLocaleDateString('he-IL'),
       s.startTime,
       s.endTime,
+      s.breakMinutes ?? 0,
       s.teachingHours,
       s.bonuses.reduce((acc: number, b: any) => acc + b.amount, 0),
       s.hasTravel ? 'כן' : 'לא',
@@ -198,6 +199,7 @@ const PayrollModule: React.FC = () => {
                     <tr>
                       <th className="p-4">תאריך</th>
                       <th className="p-4">משמרת</th>
+                      <th className="p-4 text-center">הפסקה</th>
                       <th className="p-4 text-center">הדרכה</th>
                       <th className="p-4 text-center">בונוס</th>
                       <th className="p-4 text-left">נסיעות</th>
@@ -208,6 +210,7 @@ const PayrollModule: React.FC = () => {
                       <tr key={s.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="p-4 font-bold text-slate-700">{new Date(s.date).toLocaleDateString('he-IL')}</td>
                         <td className="p-4 font-black tabular-nums">{s.startTime} - {s.endTime}</td>
+                        <td className="p-4 text-center"><span className="bg-amber-50 text-amber-700 px-3 py-1 rounded-lg font-black text-[10px]">{s.breakMinutes ?? 0} דק'</span></td>
                         <td className="p-4 text-center"><span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-lg font-black text-[10px]">{s.teachingHours} ש'</span></td>
                         <td className="p-4 text-center font-black text-emerald-600 tabular-nums">{s.bonuses.reduce((a, b) => a + b.amount, 0)}₪</td>
                         <td className="p-4 text-left">{s.hasTravel ? <span className="text-indigo-600 font-black">כן</span> : <span className="text-slate-200">לא</span>}</td>

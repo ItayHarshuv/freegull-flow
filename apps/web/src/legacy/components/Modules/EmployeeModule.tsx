@@ -80,6 +80,10 @@ const EmployeeModule: React.FC = () => {
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">שעות הדרכה</p>
                   <p className="text-lg font-black text-blue-600 mt-1">{shift.teachingHours} ש'</p>
                 </div>
+                <div className="bg-white rounded-2xl border border-slate-100 p-3">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">דקות הפסקה</p>
+                  <p className="text-lg font-black text-amber-600 mt-1 tabular-nums">{shift.breakMinutes ?? 0} דק'</p>
+                </div>
                 {currentUser.canAddBonuses && (
                   <div className="bg-white rounded-2xl border border-slate-100 p-3">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">בונוסים</p>
@@ -104,6 +108,7 @@ const EmployeeModule: React.FC = () => {
               <tr>
                 <th className="p-8">תאריך</th>
                 <th className="p-8">כניסה - יציאה</th>
+                <th className="p-8">הפסקה</th>
                 <th className="p-8">הדרכה</th>
                 {currentUser.canAddBonuses && <th className="p-8">בונוסים</th>}
                 <th className="p-8">הערות</th>
@@ -114,6 +119,7 @@ const EmployeeModule: React.FC = () => {
                 <tr key={shift.id} className="hover:bg-slate-50 transition-colors">
                   <td className="p-8 font-black text-slate-900">{new Date(shift.date).toLocaleDateString('he-IL')}</td>
                   <td className="p-8 text-slate-600 font-bold tabular-nums">{shift.startTime} - {shift.endTime || 'פעיל'}</td>
+                  <td className="p-8 text-amber-600 font-black tabular-nums">{shift.breakMinutes ?? 0} דק'</td>
                   <td className="p-8 text-blue-600 font-black">{shift.teachingHours} ש'</td>
                   {currentUser.canAddBonuses && (
                     <td className="p-8 text-emerald-600 font-black tabular-nums">{shift.bonuses.reduce((a,b) => a + b.amount, 0)} ₪</td>
@@ -122,7 +128,7 @@ const EmployeeModule: React.FC = () => {
                 </tr>
               ))}
               {userShifts.length === 0 && (
-                <tr><td colSpan={currentUser.canAddBonuses ? 5 : 4} className="p-32 text-center text-slate-200 italic font-black text-2xl">טרם בוצעו משמרות.</td></tr>
+                <tr><td colSpan={currentUser.canAddBonuses ? 6 : 5} className="p-32 text-center text-slate-200 italic font-black text-2xl">טרם בוצעו משמרות.</td></tr>
               )}
             </tbody>
           </table>

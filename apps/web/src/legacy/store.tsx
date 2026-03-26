@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
-import { AppState, User, Shift, Lesson, Rental, Task, Availability, ConfirmedShift, WhatsAppTemplate, KnowledgeFile, SeaEvent, Lead, ClubSettings } from './types';
+import { AppState, User, Shift, ActiveShift, Lesson, Rental, Task, Availability, ConfirmedShift, WhatsAppTemplate, KnowledgeFile, SeaEvent, Lead, ClubSettings } from './types';
 
 const API_BASE_URL = ((import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:4000').replace(/\/+$/, '');
 const SYNC_INTERVAL_MS = 5000;
@@ -14,6 +14,18 @@ const INITIAL_CLUB_SETTINGS: ClubSettings = {
   bankName: 'בנק הפועלים (12)',
   bankBranch: '612',
   bankAccountNumber: '456789'
+};
+
+const getCurrentTime = () => new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false });
+const getCurrentDate = () => new Date().toISOString().split('T')[0];
+const getElapsedBreakMinutes = (startedAt: string, endedAt = new Date()) =>
+  Math.max(0, Math.round((endedAt.getTime() - new Date(startedAt).getTime()) / 60000));
+const getTotalBreakMinutes = (shift: ActiveShift, endedAt = new Date()) => {
+  const accumulated = shift.accumulatedBreakMinutes ?? 0;
+  if (!shift.isOnBreak || !shift.breakStartedAt) {
+    return accumulated;
+  }
+  return accumulated + getElapsedBreakMinutes(shift.breakStartedAt, endedAt);
 };
 
 const INITIAL_STATE: AppState = {
@@ -48,7 +60,7 @@ interface AppContextType extends AppState {
   logout: () => Promise<void>;
   enterEditorMode: () => void;
   switchUser: () => Promise<void>;
-  activeShift: Partial<Shift> | null;
+  activeShift: ActiveShift | null;
   addUser: (user: User) => void;
   updateUser: (user: User) => void;
   deleteUser: (userId: string) => void;
@@ -56,6 +68,9 @@ interface AppContextType extends AppState {
   addShift: (shift: Shift) => void;
   updateShift: (shift: Shift) => void;
   startShift: () => void;
+  updateActiveShift: (patch: Partial<ActiveShift>) => void;
+  startBreak: () => void;
+  endBreak: () => void;
   endShift: (data: any) => void;
   addLesson: (lesson: Lesson) => void;
   updateLesson: (lesson: Lesson) => void;
@@ -341,25 +356,90 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const startShift = () => {
     if (!state.currentUser) return;
-    const s: Partial<Shift> = {
+    const s: ActiveShift = {
       id: Math.random().toString(36).substr(2, 9),
       userId: state.currentUser.id,
       userName: state.currentUser.name,
-      date: new Date().toISOString().split('T')[0],
-      startTime: new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false }),
-      isClosed: false, bonuses: [], notes: '', teachingHours: 0, hasTravel: false
+      date: getCurrentDate(),
+      startTime: getCurrentTime(),
+      endTime: null,
+      isClosed: false,
+      bonuses: [],
+      notes: '',
+      teachingHours: 0,
+      hasTravel: false,
+      breakMinutes: 0,
+      accumulatedBreakMinutes: 0,
+      breakStartedAt: null,
+      isOnBreak: false,
     };
     update(p => ({ ...p, activeShifts: { ...p.activeShifts, [state.currentUser!.id]: s } }));
+  };
+
+  const updateActiveShift = (patch: Partial<ActiveShift>) => {
+    if (!state.currentUser) return;
+    const active = state.activeShifts[state.currentUser.id];
+    if (!active) return;
+    update(p => ({
+      ...p,
+      activeShifts: {
+        ...p.activeShifts,
+        [state.currentUser!.id]: {
+          ...p.activeShifts[state.currentUser!.id],
+          ...patch,
+        },
+      },
+    }));
+  };
+
+  const startBreak = () => {
+    if (!state.currentUser) return;
+    const active = state.activeShifts[state.currentUser.id];
+    if (!active || active.isOnBreak) return;
+    update(p => ({
+      ...p,
+      activeShifts: {
+        ...p.activeShifts,
+        [state.currentUser!.id]: {
+          ...p.activeShifts[state.currentUser!.id],
+          isOnBreak: true,
+          breakStartedAt: new Date().toISOString(),
+        },
+      },
+    }));
+  };
+
+  const endBreak = () => {
+    if (!state.currentUser) return;
+    const active = state.activeShifts[state.currentUser.id];
+    if (!active?.isOnBreak || !active.breakStartedAt) return;
+    const breakMinutes = getElapsedBreakMinutes(active.breakStartedAt);
+    update(p => ({
+      ...p,
+      activeShifts: {
+        ...p.activeShifts,
+        [state.currentUser!.id]: {
+          ...p.activeShifts[state.currentUser!.id],
+          accumulatedBreakMinutes: (p.activeShifts[state.currentUser!.id]?.accumulatedBreakMinutes ?? 0) + breakMinutes,
+          breakStartedAt: null,
+          isOnBreak: false,
+        },
+      },
+    }));
   };
 
   const endShift = (data: any) => {
     if (!state.currentUser) return;
     const active = state.activeShifts[state.currentUser.id];
     if (!active) return;
+    const { accumulatedBreakMinutes: _accumulatedBreakMinutes, breakStartedAt: _breakStartedAt, isOnBreak: _isOnBreak, ...rest } = active;
+    const breakMinutes = getTotalBreakMinutes(active);
     const completed: Shift = {
-      ...(active as Shift),
-      endTime: new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false }),
-      isClosed: true, ...data
+      ...(rest as Shift),
+      endTime: getCurrentTime(),
+      isClosed: true,
+      ...data,
+      breakMinutes,
     };
     update(p => {
       const nextActive = { ...p.activeShifts };
@@ -419,7 +499,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     login, logout, enterEditorMode, switchUser,
     activeShift: state.currentUser ? state.activeShifts[state.currentUser.id] || null : null,
     addUser, updateUser, deleteUser, archiveUser,
-    addShift, updateShift, startShift, endShift, addLesson, updateLesson, deleteLesson,
+    addShift, updateShift, startShift, updateActiveShift, startBreak, endBreak, endShift, addLesson, updateLesson, deleteLesson,
     toggleConfirmedShift, addRental, updateRental, updateAvailableRentalItems, addTask, updateTaskStatus,
     addLead, updateLead, deleteLead, bulkSaveAvailability, updateClubSettings,
     addEvent, updateEvent, deleteEvent, 

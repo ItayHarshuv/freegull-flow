@@ -19,6 +19,7 @@ import KnowledgeModule from './components/Modules/KnowledgeModule';
 import EventsModule from './components/Modules/EventsModule';
 import PayrollModule from './components/Modules/PayrollModule';
 import ClubInfoModule from './components/Modules/ClubInfoModule';
+import MyHoursModule from './components/Modules/MyHoursModule';
 import { Menu, Waves, Cloud, CloudOff, RefreshCw } from 'lucide-react';
 
 const DashboardContent: React.FC = () => {
@@ -87,6 +88,7 @@ const DashboardContent: React.FC = () => {
               <Route path="/lessons" element={<SchedulingModule />} />
               <Route path="/daily_work" element={<DailyWorkModule />} />
               <Route path="/availability" element={<AvailabilityModule />} />
+              <Route path="/my_hours" element={<MyHoursModule />} />
               <Route path="/rentals" element={<RentalsModule />} />
               <Route path="/tasks" element={<TasksModule />} />
               <Route path="/leads" element={<LeadsModule />} />
