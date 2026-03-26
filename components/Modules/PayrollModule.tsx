@@ -45,7 +45,7 @@ const PayrollModule: React.FC = () => {
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 px-1">
         <div className="text-right">
           <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-none">דוחות שכר וטפסים</h2>
-          <p className="text-slate-600 font-bold uppercase tracking-widest text-[9px] md:text-xs mt-2">ריכוז שכר, בונוסים והורדת טפסי 101</p>
+          <p className="text-slate-600 font-bold uppercase tracking-widest text-[9px] md:text-xs mt-2">ריכוז שכר, מכירות והורדת טפסי 101</p>
         </div>
         
         <div className="flex items-center gap-4 bg-white p-2 rounded-xl md:rounded-2xl shadow-sm border border-slate-200 w-full md:w-auto justify-between md:justify-center">

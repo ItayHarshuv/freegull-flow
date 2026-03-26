@@ -55,7 +55,7 @@ const PayrollUserCard: React.FC<PayrollUserCardProps> = ({
             <div className="text-lg font-black text-brand tabular-nums">{data.summary.teachingHours}</div>
           </div>
           <div className="bg-white p-3 rounded-xl border border-slate-100 text-center shadow-inner">
-            <div className="text-[8px] font-black text-slate-400 uppercase mb-1">בונוסים</div>
+            <div className="text-[8px] font-black text-slate-400 uppercase mb-1">מכירות</div>
             <div className="text-lg font-black text-emerald-600 tabular-nums">{data.summary.bonuses}₪</div>
           </div>
           <div className="bg-white p-3 rounded-xl border border-slate-100 text-center shadow-inner">
@@ -109,7 +109,7 @@ const PayrollUserCard: React.FC<PayrollUserCardProps> = ({
                 <th className="p-4">משמרת</th>
                 <th className="p-4 text-center">הפסקה</th>
                 <th className="p-4 text-center">הדרכה</th>
-                <th className="p-4 text-center">בונוס</th>
+                <th className="p-4 text-center">מכירות</th>
                 <th className="p-4 text-left">נסיעות</th>
               </tr>
             </thead>

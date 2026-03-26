@@ -67,7 +67,7 @@ const DailyWorkModule: React.FC = () => {
       <div className="brand-gradient rounded-[2.5rem] md:rounded-[3rem] p-6 sm:p-8 md:p-10 text-white relative shadow-2xl overflow-hidden">
         <div className="relative z-10">
            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight">יום עבודה פעיל</h2>
-           <p className="text-white/70 font-bold uppercase tracking-widest text-xs mt-2">דיווח שעות, הדרכות ובונוסים בזמן אמת</p>
+           <p className="text-white/70 font-bold uppercase tracking-widest text-xs mt-2">דיווח שעות, הדרכות ומכירות בזמן אמת</p>
            
            <div className="flex flex-col sm:flex-row gap-4 mt-8">
              {!activeShift ? (

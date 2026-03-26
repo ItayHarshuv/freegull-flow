@@ -70,7 +70,7 @@ const HRModule: React.FC = () => {
   };
 
   const exportToExcel = () => {
-    const headers = ['תאריך', 'שם עובד', 'כניסה', 'יציאה', 'דקות הפסקה', 'שעות הדרכה', 'בונוסים', 'הערות'];
+    const headers = ['תאריך', 'שם עובד', 'כניסה', 'יציאה', 'דקות הפסקה', 'שעות הדרכה', 'מכירות', 'הערות'];
     const rows = shifts.map(s => [
       new Date(s.date).toLocaleDateString(),
       s.userName,
@@ -120,7 +120,7 @@ const HRModule: React.FC = () => {
       <header className="flex flex-col md:flex-row-reverse justify-between items-start md:items-center gap-6 px-1">
         <div>
           <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-none">שעון נוכחות ודיווח</h2>
-          <p className="text-slate-600 font-bold uppercase tracking-widest text-[10px] md:text-xs mt-2">מעקב שעות, הדרכות ובונוסים</p>
+          <p className="text-slate-600 font-bold uppercase tracking-widest text-[10px] md:text-xs mt-2">מעקב שעות, הדרכות ומכירות</p>
         </div>
         <button onClick={exportToExcel} className="bg-emerald-50 text-emerald-700 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-100 border border-emerald-200 transition-all shadow-lg flex items-center gap-3 active:scale-95">
           <Download size={20} />
@@ -210,14 +210,14 @@ const HRModule: React.FC = () => {
 
              <div className="space-y-6">
                 <div className="flex items-center justify-between flex-row-reverse mr-2">
-                   <label className="text-[11px] font-black text-slate-600 uppercase tracking-widest">מכירות ובונוסים</label>
+                   <label className="text-[11px] font-black text-slate-600 uppercase tracking-widest">מכירות</label>
                    <DollarSign size={18} className="text-emerald-600" />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 flex-row-reverse">
                    <input placeholder="שם הלקוח" className="p-4 bg-slate-50 border-2 border-slate-100 rounded-xl font-bold text-sm text-right shadow-inner placeholder:text-slate-400" value={newBonus.clientName} onChange={e => setNewBonus({...newBonus, clientName: e.target.value})} />
                    <input placeholder="מה נמכר?" className="p-4 bg-slate-50 border-2 border-slate-100 rounded-xl font-bold text-sm text-right shadow-inner placeholder:text-slate-400" value={newBonus.item} onChange={e => setNewBonus({...newBonus, item: e.target.value})} />
                    <input placeholder="סכום (₪)" type="number" className="p-4 bg-slate-50 border-2 border-slate-100 rounded-xl font-bold text-sm text-right shadow-inner placeholder:text-slate-400" value={newBonus.amount} onChange={e => setNewBonus({...newBonus, amount: e.target.value})} />
-                   <button onClick={handleAddBonus} className="bg-slate-900 text-white p-4 rounded-xl hover:bg-black transition-all font-black uppercase text-xs tracking-widest active:scale-95">הוסף בונוס</button>
+                   <button onClick={handleAddBonus} className="bg-slate-900 text-white p-4 rounded-xl hover:bg-black transition-all font-black uppercase text-xs tracking-widest active:scale-95">הוסף לרשימת המכירות</button>
                 </div>
                 
                 {bonuses.length > 0 && (
@@ -278,7 +278,7 @@ const HRModule: React.FC = () => {
                  <th className="p-6">שעות</th>
                  <th className="p-6">הפסקה</th>
                  <th className="p-6">הדרכה</th>
-                 <th className="p-6">בונוס</th>
+                 <th className="p-6">מכירות</th>
                  <th className="p-6 text-left">פעולות</th>
                </tr>
             </thead>

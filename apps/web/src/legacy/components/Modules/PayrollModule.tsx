@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAppStore } from '../../store';
 import { Search, FileSpreadsheet, ChevronRight, ChevronLeft, ChevronDown, Download, FileText } from 'lucide-react';
+import { downloadWorkbook } from '../../utils/xlsxWorkbook';
 
 const PayrollModule: React.FC = () => {
   const { shifts, users } = useAppStore();
@@ -11,7 +12,6 @@ const PayrollModule: React.FC = () => {
   const [openTables, setOpenTables] = useState<Record<string, boolean>>({});
 
   const monthNames = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
-
   const payrollData = useMemo(() => {
     // filter out archived users and terminal/shop accounts
     return users.filter(u => !u.isArchived && u.role !== 'Shop Computer').map(user => {
@@ -56,30 +56,34 @@ const PayrollModule: React.FC = () => {
   };
 
   const exportEmployeeReport = (data: any) => {
-    const headers = ['תאריך', 'כניסה', 'יציאה', 'דקות הפסקה', 'שעות הדרכה', 'בונוסים', 'נסיעות', 'הערות'];
-    const rows = data.shifts.map((s: any) => [
-      new Date(s.date).toLocaleDateString('he-IL'),
-      s.startTime,
-      s.endTime,
-      s.breakMinutes ?? 0,
-      s.teachingHours,
-      s.bonuses.reduce((acc: number, b: any) => acc + b.amount, 0),
-      s.hasTravel ? 'כן' : 'לא',
-      s.notes
+    const hourRows = [
+      ['תאריך', 'כניסה', 'יציאה', 'דקות הפסקה', 'שעות הדרכה', 'מכירות', 'נסיעות', 'הערות'],
+      ...data.shifts.map((s: any) => [
+        new Date(s.date).toLocaleDateString('he-IL'),
+        s.startTime,
+        s.endTime || '',
+        s.breakMinutes ?? 0,
+        s.teachingHours,
+        s.bonuses.reduce((acc: number, b: any) => acc + b.amount, 0),
+        s.hasTravel ? 'כן' : 'לא',
+        s.notes,
+      ]),
+    ];
+
+    const salesRows = [
+      ['תאריך', 'שם לקוח', 'פריט', 'סכום'],
+      ...data.shifts.flatMap((s: any) => s.bonuses.map((b: any) => [
+        new Date(s.date).toLocaleDateString('he-IL'),
+        b.clientName,
+        b.item,
+        b.amount,
+      ])),
+    ];
+
+    downloadWorkbook(`payroll_${data.user.name}_${selectedMonth + 1}.xlsx`, [
+      { name: 'דוח שעות', rows: hourRows },
+      { name: 'מכירות', rows: salesRows },
     ]);
-
-    let csvContent = "data:text/csv;charset=utf-8,\uFEFF" 
-        + `דוח שכר - ${data.user.name} - ${monthNames[selectedMonth]} ${selectedYear}\n`
-        + headers.join(",") + "\n" 
-        + rows.map((e: any) => e.join(",")).join("\n");
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `payroll_${data.user.name}_${selectedMonth + 1}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   const changeMonth = (delta: number) => {
@@ -104,7 +108,7 @@ const PayrollModule: React.FC = () => {
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 px-1">
         <div className="text-right">
           <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-none">דוחות שכר וטפסים</h2>
-          <p className="text-slate-600 font-bold uppercase tracking-widest text-[9px] md:text-xs mt-2">ריכוז שכר, בונוסים והורדת טפסי 101</p>
+          <p className="text-slate-600 font-bold uppercase tracking-widest text-[9px] md:text-xs mt-2">ריכוז שכר, מכירות והורדת טפסי 101</p>
         </div>
         
         <div className="flex items-center gap-4 bg-white p-2 rounded-xl md:rounded-2xl shadow-sm border border-slate-200 w-full md:w-auto justify-between md:justify-center">
@@ -154,7 +158,7 @@ const PayrollModule: React.FC = () => {
                   <div className="text-lg font-black text-brand tabular-nums">{data.summary.teachingHours}</div>
                 </div>
                 <div className="bg-white p-3 rounded-xl border border-slate-100 text-center shadow-inner">
-                  <div className="text-[8px] font-black text-slate-400 uppercase mb-1">בונוסים</div>
+                  <div className="text-[8px] font-black text-slate-400 uppercase mb-1">מכירות</div>
                   <div className="text-lg font-black text-emerald-600 tabular-nums">{data.summary.bonuses}₪</div>
                 </div>
                 <div className="bg-white p-3 rounded-xl border border-slate-100 text-center shadow-inner">
@@ -201,7 +205,7 @@ const PayrollModule: React.FC = () => {
                       <th className="p-4">משמרת</th>
                       <th className="p-4 text-center">הפסקה</th>
                       <th className="p-4 text-center">הדרכה</th>
-                      <th className="p-4 text-center">בונוס</th>
+                      <th className="p-4 text-center">מכירות</th>
                       <th className="p-4 text-left">נסיעות</th>
                     </tr>
                   </thead>

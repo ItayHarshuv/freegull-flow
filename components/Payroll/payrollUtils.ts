@@ -1,4 +1,5 @@
 import { Shift, User } from '../../types';
+import { downloadWorkbook } from './xlsxWorkbook';
 
 export const MONTH_NAMES_HE = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
 
@@ -69,26 +70,34 @@ export const buildPayrollEntries = ({
   .filter((entry) => entry.user.name.includes(searchTerm));
 
 export const exportPayrollEntryReport = (entry: PayrollEntry, selectedMonth: number, selectedYear: number) => {
-  const headers = ['תאריך', 'כניסה', 'יציאה', 'דקות הפסקה', 'שעות הדרכה', 'בונוסים', 'נסיעות', 'הערות'];
-  const rows = entry.shifts.map((shift) => [
-    new Date(shift.date).toLocaleDateString('he-IL'),
-    shift.startTime,
-    shift.endTime || '',
-    shift.breakMinutes ?? 0,
-    shift.teachingHours,
-    shift.bonuses.reduce((sum, bonus) => sum + bonus.amount, 0),
-    shift.hasTravel ? 'כן' : 'לא',
-    shift.notes,
-  ]);
+  const hourRows = [
+    ['תאריך', 'כניסה', 'יציאה', 'דקות הפסקה', 'שעות הדרכה', 'מכירות', 'נסיעות', 'הערות'],
+    ...entry.shifts.map((shift) => [
+      new Date(shift.date).toLocaleDateString('he-IL'),
+      shift.startTime,
+      shift.endTime || '',
+      shift.breakMinutes ?? 0,
+      shift.teachingHours,
+      shift.bonuses.reduce((sum, bonus) => sum + bonus.amount, 0),
+      shift.hasTravel ? 'כן' : 'לא',
+      shift.notes,
+    ]),
+  ];
 
-  const csvContent = `data:text/csv;charset=utf-8,\uFEFFדוח שכר - ${entry.user.name} - ${MONTH_NAMES_HE[selectedMonth]} ${selectedYear}\n${headers.join(',')}\n${rows.map((row) => row.join(',')).join('\n')}`;
-  const encodedUri = encodeURI(csvContent);
-  const link = document.createElement('a');
-  link.setAttribute('href', encodedUri);
-  link.setAttribute('download', `payroll_${entry.user.name}_${selectedMonth + 1}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  const salesRows = [
+    ['תאריך', 'שם לקוח', 'פריט', 'סכום'],
+    ...entry.shifts.flatMap((shift) => shift.bonuses.map((bonus) => [
+      new Date(shift.date).toLocaleDateString('he-IL'),
+      bonus.clientName,
+      bonus.item,
+      bonus.amount,
+    ])),
+  ];
+
+  downloadWorkbook(`payroll_${entry.user.name}_${selectedMonth + 1}.xlsx`, [
+    { name: 'דוח שעות', rows: hourRows },
+    { name: 'מכירות', rows: salesRows },
+  ]);
 };
 
 export const downloadUserForm101 = (user: User) => {

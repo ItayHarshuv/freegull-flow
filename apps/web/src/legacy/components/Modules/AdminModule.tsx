@@ -195,7 +195,7 @@ const AdminModule: React.FC = () => {
                    </div>
                    <div className="flex flex-col gap-4">
                       <label className="flex items-center gap-4 justify-end flex-row-reverse cursor-pointer p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 h-full">
-                          <span className="text-sm font-black text-slate-700">רשאי לדווח בונוסים</span>
+                          <span className="text-sm font-black text-slate-700">רשאי לדווח על מכירות</span>
                           <input type="checkbox" checked={formData.canAddBonuses} onChange={e => setFormData({...formData, canAddBonuses: e.target.checked})} className="w-6 h-6 rounded-lg accent-brand" />
                       </label>
                    </div>

@@ -86,7 +86,7 @@ const EmployeeModule: React.FC = () => {
                 </div>
                 {currentUser.canAddBonuses && (
                   <div className="bg-white rounded-2xl border border-slate-100 p-3">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">בונוסים</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">מכירות</p>
                     <p className="text-lg font-black text-emerald-600 mt-1 tabular-nums">{shift.bonuses.reduce((a, b) => a + b.amount, 0)} ₪</p>
                   </div>
                 )}
@@ -110,7 +110,7 @@ const EmployeeModule: React.FC = () => {
                 <th className="p-8">כניסה - יציאה</th>
                 <th className="p-8">הפסקה</th>
                 <th className="p-8">הדרכה</th>
-                {currentUser.canAddBonuses && <th className="p-8">בונוסים</th>}
+                {currentUser.canAddBonuses && <th className="p-8">מכירות</th>}
                 <th className="p-8">הערות</th>
               </tr>
             </thead>
