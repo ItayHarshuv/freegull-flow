@@ -2,9 +2,10 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../store';
+import { isModuleHidden } from '../../utils/hiddenModules';
 import { 
   Calendar, BookOpen, LifeBuoy, 
-  ClipboardList, CheckSquare, User, Clock, Anchor, Users2, Info
+  ClipboardList, CheckSquare, Clock, Anchor, Users2, Info
 } from 'lucide-react';
 
 interface DashboardModuleProps {
@@ -20,16 +21,15 @@ const DashboardModule: React.FC<DashboardModuleProps> = ({ userName }) => {
     { id: 'my_hours', label: 'שעות העבודה שלי', icon: Clock, color: 'bg-slate-900 text-white', desc: 'צפייה ועריכת דיווחים', allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Warehouse', 'Shop Computer'] },
     { id: 'calendar', label: 'יומן ושיבוץ', icon: Calendar, color: 'bg-indigo-500 text-white', desc: 'תצוגת יומן פעילות', allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Shop Computer'] },
     { id: 'lessons', label: 'ניהול שיעורים', icon: BookOpen, color: 'bg-emerald-500 text-white', desc: 'שיבוצי הדרכה', allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Shop Computer'] },
-    { id: 'rentals', label: 'השכרות ציוד', icon: LifeBuoy, color: 'bg-cyan-500 text-white', desc: 'מעקב ציוד ולקוחות', allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Shop Computer'] },
+    { id: 'rentals', label: 'השכרות ציוד', icon: LifeBuoy, color: 'bg-cyan-500 text-white', desc: 'מעקב ציוד ולקוחות', allowed: ['Manager', 'Shop Computer'] },
     { id: 'events', label: 'חילוצים במזרחית', icon: Anchor, color: 'bg-indigo-900 text-white', desc: 'שירותי חילוץ ברוחות מזרחיות', allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Shop Computer'] },
     { id: 'tasks', label: 'משימות ומלאי', icon: ClipboardList, color: 'bg-brand-ocean text-white', desc: 'ניהול משימות וציוד', allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Warehouse', 'Instructor', 'Shop Computer'] },
     { id: 'leads', label: 'ניהול לידים', icon: Users2, color: 'bg-orange-500 text-white', desc: 'מעקב פניות ומתעניינים', allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Shop Computer'] },
     { id: 'availability', label: 'הגשת זמינות', icon: CheckSquare, color: 'bg-violet-500 text-white', desc: 'עדכון ימי עבודה', allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Warehouse', 'Shop Computer'] },
-    { id: 'employee_page', label: 'דף אישי', icon: User, color: 'bg-slate-700 text-white', desc: 'סטטיסטיקות ומידע', allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Warehouse', 'Shop Computer'] },
     { id: 'club_info', label: 'מידע על המועדון', icon: Info, color: 'bg-slate-800 text-white', desc: 'טלפונים, מיקום ותשלום', allowed: ['Shop Computer', 'Site Editor', 'Manager', 'Shift Manager'] },
   ];
 
-  const navItems = allNavItems.filter(item => item.allowed.includes(currentUser?.role || ''));
+  const navItems = allNavItems.filter(item => item.allowed.includes(currentUser?.role || '') && !isModuleHidden(item.id));
   const getPathFromId = (id: string) => (id === 'dashboard' ? '/' : `/${id}`);
 
   return (

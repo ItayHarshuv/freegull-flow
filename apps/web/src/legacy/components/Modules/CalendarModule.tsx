@@ -81,7 +81,7 @@ const CalendarModule: React.FC = () => {
     <div className="h-full bg-white md:rounded-[2.5rem] md:shadow-2xl md:border border-slate-100 overflow-hidden flex flex-col text-right animate-fade-in" dir="rtl">
       <header className="p-4 xs:p-5 sm:p-6 md:p-10 border-b border-slate-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6 bg-white sticky top-0 z-10">
         <div className="w-full text-right">
-           <div className="flex flex-wrap items-center gap-2 xs:gap-3 flex-row-reverse mb-1">
+           <div className="flex flex-wrap items-center justify-start gap-2 xs:gap-3 mb-1">
               <h2 className="text-2xl md:text-4xl font-black text-slate-900 tracking-tight leading-none">
                 {viewMode === 'calendar' ? `${monthNames[month]} ${year}` : `זמינות צוות - ${monthNames[month]}`}
               </h2>
@@ -254,8 +254,8 @@ const CalendarModule: React.FC = () => {
                       {selectedDayInfo.lessons.map(l => (
                         <div key={l.id} className="bg-slate-50 border border-slate-100 p-4 xs:p-5 sm:p-6 rounded-[2rem] flex flex-col gap-4 text-right shadow-sm hover:shadow-md transition-shadow">
                            <div className="flex flex-col gap-4">
-                              <div className="flex flex-col xs:flex-row xs:items-center gap-4 flex-row-reverse">
-                                 <div className="w-full xs:w-24 text-center font-black text-slate-900 tabular-nums text-lg xs:text-xl flex flex-col bg-white p-2 rounded-2xl shadow-inner border border-slate-100 shrink-0">
+                              <div className="flex items-center gap-4 flex-row-reverse">
+                                 <div className="w-24 text-center font-black text-slate-900 tabular-nums text-lg xs:text-xl flex flex-col bg-white p-2 rounded-2xl shadow-inner border border-slate-100 shrink-0">
                                     <span>{l.time}</span>
                                     {l.endTime && <span className="text-[10px] text-brand-ocean opacity-60">עד {l.endTime}</span>}
                                  </div>
@@ -265,8 +265,8 @@ const CalendarModule: React.FC = () => {
                                  </div>
                               </div>
 
-                              <div className="flex flex-col items-stretch xs:items-end gap-3 shrink-0">
-                                 <div className="flex flex-col xs:flex-row gap-2 justify-end">
+                              <div className="flex items-end gap-3 shrink-0">
+                                 <div className="flex flex-row flex-wrap gap-2 justify-end">
                                     <button 
                                       onClick={() => updateLesson({ ...l, isRegistered: !l.isRegistered })}
                                       className={`px-4 py-2 rounded-xl flex items-center gap-2 text-[10px] font-black transition-all border ${l.isRegistered ? 'bg-emerald-600 text-white border-emerald-700 shadow-md' : 'bg-white text-slate-400 border-slate-200'}`}
@@ -282,12 +282,12 @@ const CalendarModule: React.FC = () => {
                                  </div>
                               </div>
                            </div>
-                           <div className="flex flex-col gap-3 xs:flex-row xs:justify-between xs:items-center border-t border-slate-200/50 pt-4">
-                              <div className="text-[11px] xs:text-[12px] font-black text-slate-500 tabular-nums bg-white px-3 py-1 rounded-lg w-full xs:w-auto">
+                           <div className="flex items-center justify-between gap-3 border-t border-slate-200/50 pt-4">
+                              <div className="text-[11px] xs:text-[12px] font-black text-slate-500 tabular-nums bg-white px-3 py-1 rounded-lg">
                                  שיעור <span className="text-brand">#{l.lessonNumber}</span> | טלפון: <a href={`tel:${l.phone}`} className="hover:text-brand transition-colors">{l.phone}</a>
                               </div>
                               {l.instructorId && (
-                                <div className="text-[11px] font-black bg-slate-900 text-white px-4 py-2 rounded-xl shadow-lg flex items-center gap-2 w-full xs:w-auto justify-center xs:justify-start">
+                                <div className="text-[11px] font-black bg-slate-900 text-white px-4 py-2 rounded-xl shadow-lg flex items-center gap-2 justify-center xs:justify-start shrink-0">
                                    <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
                                    מדריך: {users.find(u => u.id === l.instructorId)?.name}
                                 </div>

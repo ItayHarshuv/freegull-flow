@@ -2,10 +2,11 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../store';
+import { isModuleHidden } from '../../utils/hiddenModules';
 import { 
   Users, Calendar, Clock, ClipboardList, 
   LifeBuoy, LogOut, CheckSquare, LayoutDashboard, 
-  BookOpen, FileText, UserCircle, X, Waves, RefreshCcw, Anchor, Banknote, Users2, Info
+  BookOpen, FileText, X, Waves, RefreshCcw, Anchor, Banknote, Users2, Info
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -27,19 +28,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, closeMobile }) => {
     { id: 'my_hours', label: 'שעות העבודה שלי', icon: Clock, allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Warehouse', 'Shop Computer'] },
     { id: 'calendar', label: 'יומן ושיבוץ', icon: Calendar, allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Shop Computer'] },
     { id: 'lessons', label: 'ניהול שיעורים', icon: BookOpen, allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Shop Computer'] },
-    { id: 'rentals', label: 'השכרות ציוד', icon: LifeBuoy, allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Shop Computer'] },
+    { id: 'rentals', label: 'השכרות ציוד', icon: LifeBuoy, allowed: ['Manager', 'Shop Computer'] },
     { id: 'events', label: 'חילוצים במזרחית', icon: Anchor, allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Shop Computer'] },
     { id: 'tasks', label: 'משימות ומלאי', icon: ClipboardList, allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Warehouse', 'Instructor', 'Shop Computer'] },
     { id: 'leads', label: 'ניהול לידים', icon: Users2, allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Shop Computer'] },
     { id: 'availability', label: 'הגשת זמינות', icon: CheckSquare, allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Warehouse', 'Shop Computer'] },
     { id: 'payroll', label: 'דוחות שכר', icon: Banknote, allowed: ['Site Editor', 'Manager'] },
-    { id: 'employee_page', label: 'דף אישי', icon: UserCircle, allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Warehouse', 'Shop Computer'] },
     { id: 'club_info', label: 'מידע על המועדון', icon: Info, allowed: ['Shop Computer', 'Site Editor', 'Manager', 'Shift Manager'] },
     { id: 'knowledge', label: 'חומר מקצועי', icon: FileText, allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Shop Computer'] },
     { id: 'admin', label: 'ניהול צוות', icon: Users, allowed: ['Site Editor', 'Manager'] },
   ];
 
-  const filteredMenu = menuItems.filter(item => item.allowed.includes(currentUser.role));
+  const filteredMenu = menuItems.filter(item => item.allowed.includes(currentUser.role) && !isModuleHidden(item.id));
   const getPathFromId = (id: string) => (id === 'dashboard' ? '/' : `/${id}`);
 
   const getRoleLabel = (role: string) => {

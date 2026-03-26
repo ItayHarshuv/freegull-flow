@@ -14,17 +14,18 @@ import LeadsModule from './components/Modules/LeadsModule';
 import AdminModule from './components/Modules/AdminModule';
 import DashboardModule from './components/Modules/DashboardModule';
 import DailyWorkModule from './components/Modules/DailyWorkModule';
-import EmployeeModule from './components/Modules/EmployeeModule';
 import KnowledgeModule from './components/Modules/KnowledgeModule';
 import EventsModule from './components/Modules/EventsModule';
 import PayrollModule from './components/Modules/PayrollModule';
 import ClubInfoModule from './components/Modules/ClubInfoModule';
 import MyHoursModule from './components/Modules/MyHoursModule';
 import { Menu, Waves, Cloud, CloudOff, RefreshCw } from 'lucide-react';
+import { isModuleHidden } from './utils/hiddenModules';
 
 const DashboardContent: React.FC = () => {
   const { currentUser, authHydrated, syncStatus, lastSyncTime, clubId, syncNow } = useAppStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const canAccessRentals = ['Manager', 'Shop Computer'].includes(currentUser?.role || '');
 
   if (!authHydrated) {
     return <div className="min-h-screen bg-[#F8FAFC]" />;
@@ -85,18 +86,17 @@ const DashboardContent: React.FC = () => {
               <Route path="/" element={<DashboardModule userName={currentUser.name} />} />
               <Route path="/dashboard" element={<Navigate to="/" replace />} />
               <Route path="/calendar" element={<CalendarModule />} />
-              <Route path="/lessons" element={<SchedulingModule />} />
+              <Route path="/lessons" element={isModuleHidden('lessons') ? <Navigate to="/" replace /> : <SchedulingModule />} />
               <Route path="/daily_work" element={<DailyWorkModule />} />
               <Route path="/availability" element={<AvailabilityModule />} />
               <Route path="/my_hours" element={<MyHoursModule />} />
-              <Route path="/rentals" element={<RentalsModule />} />
-              <Route path="/tasks" element={<TasksModule />} />
-              <Route path="/leads" element={<LeadsModule />} />
-              <Route path="/employee_page" element={<EmployeeModule />} />
-              <Route path="/club_info" element={<ClubInfoModule />} />
-              <Route path="/knowledge" element={<KnowledgeModule />} />
+              <Route path="/rentals" element={canAccessRentals ? <RentalsModule /> : <Navigate to="/" replace />} />
+              <Route path="/tasks" element={isModuleHidden('tasks') ? <Navigate to="/" replace /> : <TasksModule />} />
+              <Route path="/leads" element={isModuleHidden('leads') ? <Navigate to="/" replace /> : <LeadsModule />} />
+              <Route path="/club_info" element={isModuleHidden('club_info') ? <Navigate to="/" replace /> : <ClubInfoModule />} />
+              <Route path="/knowledge" element={isModuleHidden('knowledge') ? <Navigate to="/" replace /> : <KnowledgeModule />} />
               <Route path="/admin" element={<AdminModule />} />
-              <Route path="/events" element={<EventsModule />} />
+              <Route path="/events" element={isModuleHidden('events') ? <Navigate to="/" replace /> : <EventsModule />} />
               <Route path="/payroll" element={<PayrollModule />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
