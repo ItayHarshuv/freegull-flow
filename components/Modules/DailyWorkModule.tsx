@@ -1,8 +1,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAppStore } from '../../store';
-import { ActiveShift, BonusItem } from '../../types';
+import { ActiveShift } from '../../types';
 import { Clock, LogOut, Car, Star, PauseCircle, PlayCircle, TimerReset } from 'lucide-react';
+import SalesEditorCard from '../Payroll/SalesEditorCard';
 
 const getDisplayedBreakMinutes = (activeShift: ActiveShift | null, now: number) => {
   const accumulated = activeShift?.accumulatedBreakMinutes ?? 0;
@@ -25,8 +26,6 @@ const formatBreakStartTime = (activeShift: ActiveShift | null) => {
 
 const DailyWorkModule: React.FC = () => {
   const { activeShift, startShift, updateActiveShift, startBreak, endBreak, endShift } = useAppStore();
-  const [bonuses, setBonuses] = useState<BonusItem[]>([]);
-  const [newBonus, setNewBonus] = useState({ clientName: '', item: '', amount: '' });
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -39,27 +38,16 @@ const DailyWorkModule: React.FC = () => {
   const teachingHours = activeShift?.teachingHours ?? 0;
   const notes = activeShift?.notes ?? '';
   const hasTravel = activeShift?.hasTravel ?? false;
-
-  const handleAddBonus = () => {
-    if (!newBonus.clientName || !newBonus.amount) return;
-    setBonuses([...bonuses, {
-      id: Math.random().toString(36).substr(2, 9),
-      clientName: newBonus.clientName,
-      item: newBonus.item,
-      amount: Number(newBonus.amount)
-    }]);
-    setNewBonus({ clientName: '', item: '', amount: '' });
-  };
+  const bonuses = activeShift?.bonuses ?? [];
 
   const handleClockOut = () => {
     if (!activeShift) return;
-    endShift({ 
-      teachingHours, 
-      notes, 
-      hasTravel, 
-      bonuses 
+    endShift({
+      teachingHours,
+      notes,
+      hasTravel,
+      bonuses,
     });
-    setBonuses([]);
   };
 
   return (
@@ -136,6 +124,12 @@ const DailyWorkModule: React.FC = () => {
                  <button onClick={() => updateActiveShift({ teachingHours: teachingHours + 0.25 })} className="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-2xl shadow-md font-black text-xl sm:text-2xl hover:bg-slate-50 border border-slate-100 active:scale-90 transition-all shrink-0">+</button>
               </div>
            </section>
+
+           <SalesEditorCard
+             bonuses={bonuses}
+             onChange={(nextBonuses) => updateActiveShift({ bonuses: nextBonuses })}
+             emptyMessage="עדיין לא נשמרו מכירות למשמרת הזו."
+           />
 
            <section className="bg-white p-6 sm:p-8 md:p-10 rounded-[2.5rem] md:rounded-[3rem] border-2 border-slate-100 shadow-xl space-y-6 md:space-y-8">
               <div className="flex flex-col md:flex-row gap-8">
