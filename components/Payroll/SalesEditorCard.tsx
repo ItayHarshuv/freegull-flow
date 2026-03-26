@@ -44,10 +44,10 @@ const SalesEditorCard: React.FC<SalesEditorCardProps> = ({
 
   return (
     <section className="bg-white p-6 sm:p-8 md:p-10 rounded-[2.5rem] md:rounded-[3rem] border-2 border-slate-100 shadow-xl space-y-5">
-      <div className="flex justify-end">
-        <div className="text-right flex flex-col items-end">
+      <div className="flex justify-start">
+        <div className="text-right flex flex-col items-start">
           <h4 className="text-lg font-black text-slate-900">{title}</h4>
-          <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mt-1">סה"כ {totalBonuses}₪</p>
+          <p className="text-[14px] font-black uppercase tracking-widest text-emerald-600 mt-1">סה"כ {totalBonuses}₪</p>
         </div>
       </div>
 
@@ -79,10 +79,13 @@ const SalesEditorCard: React.FC<SalesEditorCardProps> = ({
                 onChange={(event) => setPendingBonus((current) => ({ ...current, amount: event.target.value }))}
               />
             </div>
+            
+          </div>
+          <div className="grid grid-cols-1">
             <button
               type="button"
               onClick={addBonus}
-              className="px-5 py-3 bg-emerald-50 text-emerald-700 rounded-xl font-black text-xs uppercase tracking-widest border border-emerald-200 hover:bg-emerald-100 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-5 py-3 bg-emerald-50 text-emerald-700 rounded-xl font-black text-xs uppercase tracking-widest border border-emerald-200 hover:bg-emerald-100 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!pendingBonus.clientName.trim() || !pendingBonus.amount.trim()}
             >
               <Plus size={16} />

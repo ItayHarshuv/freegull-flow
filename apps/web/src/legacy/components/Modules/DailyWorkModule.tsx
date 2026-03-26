@@ -92,9 +92,13 @@ const DailyWorkModule: React.FC = () => {
               </div>
 
               <div className="flex flex-col xs:flex-row items-center justify-between gap-4 xs:gap-6 bg-slate-50 p-4 sm:p-6 rounded-3xl border-2 border-slate-100 shadow-inner">
+                 <div className="order-1 xs:order-2 flex flex-col items-center">
+                    <span className="text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 tabular-nums leading-none">{displayedBreakMinutes}</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">דקות הפסקה סה"כ במשמרת הנוכחית</span>
+                 </div>
                  <button
                    onClick={activeShift.isOnBreak ? endBreak : startBreak}
-                   className={`w-full xs:w-auto px-6 sm:px-8 py-4 rounded-2xl font-black text-base sm:text-lg transition-all active:scale-95 flex items-center justify-center gap-3 shrink-0 ${
+                   className={`order-2 xs:order-1 w-full xs:w-auto px-6 sm:px-8 py-4 rounded-2xl font-black text-base sm:text-lg transition-all active:scale-95 flex items-center justify-center gap-3 shrink-0 ${
                      activeShift.isOnBreak
                        ? 'bg-emerald-600 text-white hover:bg-emerald-700'
                        : 'bg-amber-500 text-white hover:bg-amber-600'
@@ -103,11 +107,6 @@ const DailyWorkModule: React.FC = () => {
                    {activeShift.isOnBreak ? <PlayCircle size={24} className="shrink-0" /> : <PauseCircle size={24} className="shrink-0" />}
                    {activeShift.isOnBreak ? 'חזרה למשמרת' : 'יציאה להפסקה'}
                  </button>
-
-                 <div className="flex flex-col items-center">
-                    <span className="text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 tabular-nums leading-none">{displayedBreakMinutes}</span>
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">דקות הפסקה סה"כ במשמרת הנוכחית</span>
-                 </div>
               </div>
            </section>
 
@@ -115,7 +114,7 @@ const DailyWorkModule: React.FC = () => {
               <h3 className="text-xl font-black text-slate-900 flex items-center gap-3 flex-row-reverse">
                  <Star className="text-brand" /> שעות הדרכה בפועל
               </h3>
-              <div className="flex flex-col xs:flex-row items-center justify-between gap-4 xs:gap-6 bg-slate-50 p-4 sm:p-6 rounded-3xl border-2 border-slate-100 shadow-inner">
+              <div className="flex flex-row items-center justify-between gap-4 xs:gap-6 bg-slate-50 p-4 sm:p-6 rounded-3xl border-2 border-slate-100 shadow-inner">
                  <button onClick={() => updateActiveShift({ teachingHours: Math.max(0, teachingHours - 0.25) })} className="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-2xl shadow-md font-black text-xl sm:text-2xl hover:bg-slate-50 border border-slate-100 active:scale-90 transition-all shrink-0">—</button>
                  <div className="flex flex-col items-center">
                     <span className="text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 tabular-nums leading-none">{teachingHours.toFixed(2)}</span>

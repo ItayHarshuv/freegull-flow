@@ -54,20 +54,20 @@ const SalesEditorCard: React.FC<SalesEditorCardProps> = ({
       <div className="space-y-4">
         <div className="bg-slate-50 border border-slate-200 rounded-[2rem] p-4 space-y-4">
           <h5 className="text-sm font-black text-slate-900 text-right">הוסף מכירה</h5>
-          <div className="grid grid-cols-1 md:grid-cols-[1.2fr_1.2fr_0.8fr_auto] gap-3">
+          <div className="flex flex-wrap items-stretch gap-3">
             <input
               placeholder="שם הלקוח"
-              className="p-4 bg-white border border-slate-200 rounded-xl font-bold text-sm text-right outline-none focus:ring-2 focus:ring-slate-900"
+              className="min-w-[220px] flex-[1_1_220px] p-4 bg-white border border-slate-200 rounded-xl font-bold text-sm text-right outline-none focus:ring-2 focus:ring-slate-900"
               value={pendingBonus.clientName}
               onChange={(event) => setPendingBonus((current) => ({ ...current, clientName: event.target.value }))}
             />
             <input
               placeholder="פריט / סיבה"
-              className="p-4 bg-white border border-slate-200 rounded-xl font-bold text-sm text-right outline-none focus:ring-2 focus:ring-slate-900"
+              className="min-w-[220px] flex-[1_1_220px] p-4 bg-white border border-slate-200 rounded-xl font-bold text-sm text-right outline-none focus:ring-2 focus:ring-slate-900"
               value={pendingBonus.item}
               onChange={(event) => setPendingBonus((current) => ({ ...current, item: event.target.value }))}
             />
-            <div className="relative">
+            <div className="relative min-w-[160px] flex-[0.8_1_160px]">
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-black">₪</span>
               <input
                 type="number"
@@ -82,7 +82,7 @@ const SalesEditorCard: React.FC<SalesEditorCardProps> = ({
             <button
               type="button"
               onClick={addBonus}
-              className="px-5 py-3 bg-emerald-50 text-emerald-700 rounded-xl font-black text-xs uppercase tracking-widest border border-emerald-200 hover:bg-emerald-100 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full min-w-[160px] flex-[1_0_100%] px-5 py-3 bg-emerald-50 text-emerald-700 rounded-xl font-black text-xs uppercase tracking-widest border border-emerald-200 hover:bg-emerald-100 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!pendingBonus.clientName.trim() || !pendingBonus.amount.trim()}
             >
               <Plus size={16} />
