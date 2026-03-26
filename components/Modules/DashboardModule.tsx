@@ -19,7 +19,7 @@ const DashboardModule: React.FC<DashboardModuleProps> = ({ userName }) => {
   const allNavItems = [
     { id: 'daily_work', label: 'יום עבודה', icon: Clock, color: 'brand-gradient text-white', desc: 'פתיחת שעון ולו"ז יומי', allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Warehouse'] },
     { id: 'my_hours', label: 'שעות העבודה שלי', icon: Clock, color: 'bg-slate-900 text-white', desc: 'צפייה ועריכת דיווחים', allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Warehouse', 'Shop Computer'] },
-    { id: 'calendar', label: 'יומן ושיבוץ', icon: Calendar, color: 'bg-indigo-500 text-white', desc: 'תצוגת יומן פעילות', allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Shop Computer'] },
+    { id: 'calendar', label: 'יומן ושיבוץ', icon: Calendar, color: 'bg-indigo-500 text-white', desc: 'תצוגת יומן פעילות', allowed: ['Manager'] },
     { id: 'lessons', label: 'ניהול שיעורים', icon: BookOpen, color: 'bg-emerald-500 text-white', desc: 'שיבוצי הדרכה', allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Shop Computer'] },
     { id: 'rentals', label: 'השכרות ציוד', icon: LifeBuoy, color: 'bg-cyan-500 text-white', desc: 'מעקב ציוד ולקוחות', allowed: ['Manager', 'Shop Computer'] },
     { id: 'events', label: 'חילוצים במזרחית', icon: Anchor, color: 'bg-indigo-900 text-white', desc: 'שירותי חילוץ ברוחות מזרחיות', allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Shop Computer'] },

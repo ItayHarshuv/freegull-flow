@@ -25,6 +25,7 @@ import { isModuleHidden } from './utils/hiddenModules';
 const DashboardContent: React.FC = () => {
   const { currentUser, authHydrated, syncStatus, lastSyncTime, clubId, syncNow } = useAppStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const canAccessCalendar = currentUser?.role === 'Manager';
   const canAccessRentals = ['Manager', 'Shop Computer'].includes(currentUser?.role || '');
 
   if (!authHydrated) {
@@ -85,7 +86,7 @@ const DashboardContent: React.FC = () => {
             <Routes>
               <Route path="/" element={<DashboardModule userName={currentUser.name} />} />
               <Route path="/dashboard" element={<Navigate to="/" replace />} />
-              <Route path="/calendar" element={<CalendarModule />} />
+              <Route path="/calendar" element={canAccessCalendar ? <CalendarModule /> : <Navigate to="/" replace />} />
               <Route path="/lessons" element={isModuleHidden('lessons') ? <Navigate to="/" replace /> : <SchedulingModule />} />
               <Route path="/daily_work" element={<DailyWorkModule />} />
               <Route path="/availability" element={<AvailabilityModule />} />
