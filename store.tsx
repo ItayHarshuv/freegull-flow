@@ -67,6 +67,7 @@ interface AppContextType extends AppState {
   archiveUser: (userId: string) => void;
   addShift: (shift: Shift) => void;
   updateShift: (shift: Shift) => void;
+  deleteShift: (shiftId: string) => void;
   startShift: () => void;
   updateActiveShift: (patch: Partial<ActiveShift>) => void;
   startBreak: () => void;
@@ -353,6 +354,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   
   const addShift = (s: Shift) => update(p => ({ ...p, shifts: [s, ...p.shifts] }));
   const updateShift = (s: Shift) => update(p => ({ ...p, shifts: p.shifts.map(x => x.id === s.id ? s : x) }));
+  const deleteShift = (id: string) => update(p => ({ ...p, shifts: p.shifts.filter(x => x.id !== id) }));
 
   const startShift = () => {
     if (!state.currentUser) return;
@@ -499,7 +501,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     login, logout, enterEditorMode, switchUser,
     activeShift: state.currentUser ? state.activeShifts[state.currentUser.id] || null : null,
     addUser, updateUser, deleteUser, archiveUser,
-    addShift, updateShift, startShift, updateActiveShift, startBreak, endBreak, endShift, addLesson, updateLesson, deleteLesson,
+    addShift, updateShift, deleteShift, startShift, updateActiveShift, startBreak, endBreak, endShift, addLesson, updateLesson, deleteLesson,
     toggleConfirmedShift, addRental, updateRental, updateAvailableRentalItems, addTask, updateTaskStatus,
     addLead, updateLead, deleteLead, bulkSaveAvailability, updateClubSettings,
     addEvent, updateEvent, deleteEvent, 

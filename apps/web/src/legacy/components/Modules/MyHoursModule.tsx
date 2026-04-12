@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { useAppStore } from '../../store';
 import PayrollUserCard from '../Payroll/PayrollUserCard';
 import ShiftEditModal from '../Payroll/ShiftEditModal';
@@ -7,10 +7,9 @@ import { MONTH_NAMES_HE, buildPayrollEntries, exportPayrollEntryReport } from '.
 import { Shift } from '../../types';
 
 const MyHoursModule: React.FC = () => {
-  const { currentUser, shifts, users, updateShift } = useAppStore();
+  const { currentUser, shifts, users, addShift, updateShift, deleteShift } = useAppStore();
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [isCardOpen, setIsCardOpen] = useState(false);
   const [editingShift, setEditingShift] = useState<Shift | null>(null);
 
   const myPayrollEntry = useMemo(() => {
@@ -25,6 +24,21 @@ const MyHoursModule: React.FC = () => {
   }, [currentUser, selectedMonth, selectedYear, shifts, users]);
 
   if (!currentUser || !myPayrollEntry) return null;
+
+  const createEmptyShift = (): Shift => ({
+    id: Math.random().toString(36).substr(2, 9),
+    userId: currentUser.id,
+    userName: currentUser.name,
+    date: '',
+    startTime: '',
+    endTime: null,
+    teachingHours: 0,
+    bonuses: [],
+    notes: '',
+    isClosed: true,
+    hasTravel: false,
+    breakMinutes: 0,
+  });
 
   const changeMonth = (delta: number) => {
     let nextMonth = selectedMonth + delta;
@@ -52,23 +66,34 @@ const MyHoursModule: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-4 bg-white p-2 rounded-xl md:rounded-2xl shadow-sm border border-slate-200 w-full md:w-auto justify-between md:justify-center">
-          <button onClick={() => changeMonth(1)} className="p-2 hover:bg-slate-50 rounded-lg">
-            <ChevronRight size={18} />
-          </button>
-          <span className="font-black text-sm md:text-base text-slate-900 min-w-[110px] text-center">
-            {MONTH_NAMES_HE[selectedMonth]} {selectedYear}
-          </span>
-          <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-slate-50 rounded-lg">
-            <ChevronLeft size={18} />
-          </button>
+            <button onClick={() => changeMonth(1)} className="p-2 hover:bg-slate-50 rounded-lg">
+              <ChevronRight size={18} />
+            </button>
+            <span className="font-black text-sm md:text-base text-slate-900 min-w-[110px] text-center">
+              {MONTH_NAMES_HE[selectedMonth]} {selectedYear}
+            </span>
+            <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-slate-50 rounded-lg">
+              <ChevronLeft size={18} />
+            </button>
         </div>
       </header>
 
       <div className="grid gap-8 px-1 min-w-0">
         <PayrollUserCard
           data={myPayrollEntry}
-          isOpen={isCardOpen}
-          onToggle={() => setIsCardOpen((current) => !current)}
+          isOpen={true}
+          onToggle={() => undefined}
+          showDetailsToggle={false}
+          extraActions={
+            <button
+              type="button"
+              onClick={() => setEditingShift(createEmptyShift())}
+              className="w-full px-5 py-3 bg-emerald-50 text-emerald-700 rounded-xl font-black text-xs uppercase tracking-widest border border-emerald-200 hover:bg-emerald-100 transition-all flex items-center justify-center gap-2"
+            >
+              <Plus size={16} />
+              הוספת משמרת ידנית
+            </button>
+          }
           onExportReport={() => exportPayrollEntryReport(myPayrollEntry, selectedMonth, selectedYear)}
           onShiftClick={(shift) => setEditingShift(shift)}
           emptyMessage="אין עדיין דיווחי שעות בחודש שנבחר."
@@ -80,7 +105,17 @@ const MyHoursModule: React.FC = () => {
           shift={editingShift}
           onClose={() => setEditingShift(null)}
           onSave={(shift) => {
-            updateShift(shift);
+            const shiftExists = shifts.some((existingShift) => existingShift.id === shift.id);
+            if (shiftExists) {
+              updateShift(shift);
+            } else {
+              addShift(shift);
+            }
+            setEditingShift(null);
+          }}
+          isNewShift={!shifts.some((existingShift) => existingShift.id === editingShift.id)}
+          onDelete={() => {
+            deleteShift(editingShift.id);
             setEditingShift(null);
           }}
         />

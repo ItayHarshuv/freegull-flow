@@ -7,6 +7,8 @@ interface PayrollUserCardProps {
   data: PayrollEntry;
   isOpen: boolean;
   onToggle: () => void;
+  showDetailsToggle?: boolean;
+  extraActions?: React.ReactNode;
   onExportReport?: () => void;
   onDownload101?: () => void;
   onShiftClick?: (shift: Shift) => void;
@@ -17,6 +19,8 @@ const PayrollUserCard: React.FC<PayrollUserCardProps> = ({
   data,
   isOpen,
   onToggle,
+  showDetailsToggle = true,
+  extraActions,
   onExportReport,
   onDownload101,
   onShiftClick,
@@ -64,34 +68,39 @@ const PayrollUserCard: React.FC<PayrollUserCardProps> = ({
           </div>
         </div>
 
-        <div className="min-w-0 flex flex-wrap gap-2 w-full xl:w-auto">
-          <button
-            type="button"
-            onClick={onToggle}
-            aria-expanded={isOpen}
-            className="flex-1 xl:flex-none min-w-[140px] bg-white text-slate-700 px-5 py-4 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm"
-          >
-            <ChevronDown size={18} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-            {isOpen ? 'סגור פירוט' : 'פתח פירוט'}
-          </button>
-          {data.user.hasForm101 && onDownload101 && (
-            <button
-              onClick={onDownload101}
-              className="flex-1 xl:flex-none min-w-[64px] bg-slate-100 text-slate-700 px-5 py-4 rounded-xl font-black text-xs uppercase flex items-center justify-center gap-2 hover:bg-slate-200 transition-all shadow-sm"
-              title="הורדת טופס 101"
-            >
-              <Download size={18} />
-            </button>
-          )}
-          {onExportReport && (
-            <button
-              onClick={onExportReport}
-              className="flex-1 xl:flex-none min-w-[140px] bg-slate-900 text-white px-8 py-4 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95"
-            >
-              <FileSpreadsheet size={18} />
-              דוח שעות
-            </button>
-          )}
+        <div className="min-w-0 flex flex-col gap-2 w-full xl:w-auto xl:min-w-[220px]">
+          <div className="min-w-0 flex flex-wrap gap-2 w-full">
+            {showDetailsToggle && (
+              <button
+                type="button"
+                onClick={onToggle}
+                aria-expanded={isOpen}
+                className="flex-1 xl:flex-none min-w-[140px] bg-white text-slate-700 px-5 py-4 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm"
+              >
+                <ChevronDown size={18} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                {isOpen ? 'סגור פירוט' : 'פתח פירוט'}
+              </button>
+            )}
+            {data.user.hasForm101 && onDownload101 && (
+              <button
+                onClick={onDownload101}
+                className="flex-1 xl:flex-none min-w-[64px] bg-slate-100 text-slate-700 px-5 py-4 rounded-xl font-black text-xs uppercase flex items-center justify-center gap-2 hover:bg-slate-200 transition-all shadow-sm"
+                title="הורדת טופס 101"
+              >
+                <Download size={18} />
+              </button>
+            )}
+            {onExportReport && (
+              <button
+                onClick={onExportReport}
+                className="flex-1 xl:flex-none min-w-[140px] bg-slate-900 text-white px-8 py-4 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all flex items-center justify-center gap-3 shadow-lg active:scale-95"
+              >
+                <FileSpreadsheet size={18} />
+                דוח שעות
+              </button>
+            )}
+          </div>
+          {extraActions}
         </div>
       </div>
 
