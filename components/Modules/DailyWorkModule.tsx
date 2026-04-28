@@ -24,6 +24,16 @@ const formatBreakStartTime = (activeShift: ActiveShift | null) => {
   });
 };
 
+const getTodayDateString = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const formatShiftDate = (date: string) => new Date(`${date}T00:00:00`).toLocaleDateString('he-IL');
+
 const DailyWorkModule: React.FC = () => {
   const { activeShift, startShift, updateActiveShift, startBreak, endBreak, endShift } = useAppStore();
   const [now, setNow] = useState(() => Date.now());
@@ -39,6 +49,8 @@ const DailyWorkModule: React.FC = () => {
   const notes = activeShift?.notes ?? '';
   const hasTravel = activeShift?.hasTravel ?? false;
   const bonuses = activeShift?.bonuses ?? [];
+  const isShiftFromAnotherDay = !!activeShift?.date && activeShift.date !== getTodayDateString();
+  const activeShiftDateLabel = activeShift?.date ? formatShiftDate(activeShift.date) : '';
 
   const handleClockOut = () => {
     if (!activeShift) return;
@@ -81,6 +93,13 @@ const DailyWorkModule: React.FC = () => {
 
       {activeShift && (
         <div className="space-y-6 md:space-y-8 pb-20">
+           {isShiftFromAnotherDay && (
+             <section className="bg-amber-50 border-2 border-amber-200 text-amber-900 p-5 sm:p-6 rounded-[2rem] shadow-sm">
+               <p className="font-black leading-relaxed">
+                 שים לב! המשמרת פעילה עוד מ{activeShiftDateLabel}, יש ללחוץ על "סיום משמרת ודיווח", ולערוך את שעת היציאה לשעה שבה סיימת את המשמרת בתאריך {activeShiftDateLabel}
+               </p>
+             </section>
+           )}
            <section className="bg-white p-6 sm:p-8 md:p-10 rounded-[2.5rem] md:rounded-[3rem] border-2 border-slate-100 shadow-xl space-y-6">
               <div className="text-right">
                  <h3 className="text-xl font-black text-slate-900 flex items-center gap-3 flex-row-reverse">
