@@ -123,7 +123,6 @@ const buildDailyPayrollRows = (shifts: Shift[]) => {
         shabatHours: premiumHolidayDay ? formatHours(regularMinutes) : 0,
         extraShabatHours: premiumHolidayDay ? formatHours(overtimeMinutes) : 0,
         teachingHours: Number(row.teachingHours.toFixed(2)),
-        shabatTeachingHours: premiumHolidayDay ? Number(row.teachingHours.toFixed(2)) : 0,
         bonuses: row.bonuses,
         travelCount: row.travelCount,
         notes: row.notes.join(' | '),
@@ -185,7 +184,6 @@ export const exportPayrollEntryReport = (entry: PayrollEntry, selectedMonth: num
     shabatHours: sum.shabatHours + row.shabatHours,
     extraShabatHours: sum.extraShabatHours + row.extraShabatHours,
     teachingHours: sum.teachingHours + row.teachingHours,
-    shabatTeachingHours: sum.shabatTeachingHours + row.shabatTeachingHours,
     bonuses: sum.bonuses + row.bonuses,
     travelCount: sum.travelCount + row.travelCount,
   }), {
@@ -195,13 +193,12 @@ export const exportPayrollEntryReport = (entry: PayrollEntry, selectedMonth: num
     shabatHours: 0,
     extraShabatHours: 0,
     teachingHours: 0,
-    shabatTeachingHours: 0,
     bonuses: 0,
     travelCount: 0,
   });
 
   const hourRows = [
-    ['תאריך', 'סה"כ שעות עבודה', 'שעות רגילות', 'שעות נוספות', 'שעות שבת/חג', 'שעות נוספות שבת/חג', 'שעות הדרכה', 'שעות הדרכה שבת/חג', 'מכירות', 'נסיעות', 'הערות'],
+    ['תאריך', 'סה"כ שעות עבודה', 'שעות רגילות', 'שעות נוספות', 'שעות שבת/חג', 'שעות נוספות שבת/חג', 'שעות הדרכה', 'מכירות', 'נסיעות', 'הערות'],
     ...dailyRows.map((row) => [
       new Date(row.date).toLocaleDateString('he-IL'),
       row.workHours,
@@ -210,12 +207,11 @@ export const exportPayrollEntryReport = (entry: PayrollEntry, selectedMonth: num
       row.shabatHours,
       row.extraShabatHours,
       row.teachingHours,
-      row.shabatTeachingHours,
       row.bonuses,
       row.travelCount,
       row.notes,
     ]),
-    ['סה"כ', totals.workHours, totals.regularHours, totals.extraHours, totals.shabatHours, totals.extraShabatHours, totals.teachingHours, totals.shabatTeachingHours, totals.bonuses, totals.travelCount, ''],
+    ['סה"כ', totals.workHours, totals.regularHours, totals.extraHours, totals.shabatHours, totals.extraShabatHours, totals.teachingHours, totals.bonuses, totals.travelCount, ''],
   ];
 
   const salesRows = [
