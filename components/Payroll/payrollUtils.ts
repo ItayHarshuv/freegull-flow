@@ -224,9 +224,20 @@ export const exportPayrollEntryReport = (entry: PayrollEntry, selectedMonth: num
     ])),
   ];
 
+  const detailedSalesRows = [
+    ['Date', 'Customer', 'Product/Reason', 'Amount'],
+    ...entry.shifts.flatMap((shift) => shift.bonuses.map((bonus) => [
+      new Date(shift.date).toLocaleDateString('he-IL'),
+      bonus.clientName,
+      bonus.item || 'ללא פירוט',
+      bonus.amount,
+    ])),
+  ];
+
   downloadWorkbook(`payroll_${entry.user.name}_${selectedMonth + 1}.xlsx`, [
     { name: 'דוח שעות', rows: hourRows },
     { name: 'מכירות', rows: salesRows },
+    { name: 'Detailed Sales', rows: detailedSalesRows },
   ]);
 };
 
