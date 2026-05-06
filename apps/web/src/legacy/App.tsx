@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppProvider, useAppStore } from './store';
 import Sidebar from './components/Layout/Sidebar';
@@ -19,14 +19,64 @@ import EventsModule from './components/Modules/EventsModule';
 import PayrollModule from './components/Modules/PayrollModule';
 import ClubInfoModule from './components/Modules/ClubInfoModule';
 import MyHoursModule from './components/Modules/MyHoursModule';
-import { Menu, Waves, Cloud, CloudOff, RefreshCw } from 'lucide-react';
+import { Menu, Waves, Cloud, CloudOff, RefreshCw, Bell, BellOff } from 'lucide-react';
 import { isModuleHidden } from './utils/hiddenModules';
+import { disableManagerPush, enableManagerPush, getPushStatus, isWebPushSupported } from './pushNotifications';
 
 const DashboardContent: React.FC = () => {
   const { currentUser, authHydrated, syncStatus, lastSyncTime, clubId, syncNow } = useAppStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const canAccessCalendar = currentUser?.role === 'Manager';
   const canAccessRentals = ['Manager', 'Shop Computer'].includes(currentUser?.role || '');
+  const isManager = ['Manager', 'Shift Manager', 'manager', 'shift-manager'].includes(currentUser?.role || '');
+  const [pushSupported, setPushSupported] = useState(false);
+  const [pushPermission, setPushPermission] = useState<NotificationPermission>('default');
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isManager) return;
+    const run = async () => {
+      const status = await getPushStatus({ clubId });
+      setPushSupported(status.supported);
+      setPushPermission(status.permission);
+      setPushSubscribed(status.subscribed);
+    };
+    run().catch(() => {
+      setPushSupported(isWebPushSupported());
+      setPushSubscribed(false);
+    });
+  }, [clubId, isManager]);
+
+  const togglePush = async () => {
+    if (!isManager) return;
+    if (!isWebPushSupported()) {
+      setPushSupported(false);
+      return;
+    }
+    setPushLoading(true);
+    try {
+      if (pushSubscribed) {
+        await disableManagerPush({ clubId });
+      } else {
+        await enableManagerPush({ clubId });
+      }
+      const status = await getPushStatus({ clubId });
+      setPushSupported(status.supported);
+      setPushPermission(status.permission);
+      setPushSubscribed(status.subscribed);
+    } finally {
+      setPushLoading(false);
+    }
+  };
+
+  const pushButtonTitle = !pushSupported
+    ? 'הדפדפן לא תומך בהתראות'
+    : pushPermission === 'denied'
+      ? 'ההתראות חסומות בדפדפן'
+      : pushSubscribed
+        ? 'כבה התראות מנהלים'
+        : 'הפעל התראות מנהלים';
 
   if (!authHydrated) {
     return <div className="min-h-screen bg-[#F8FAFC]" />;
@@ -52,6 +102,18 @@ const DashboardContent: React.FC = () => {
          </div>
          
          <div className="flex items-center gap-2 lg:gap-4 flex-row-reverse shrink-0">
+            {isManager && (
+              <button
+                onClick={togglePush}
+                disabled={pushLoading || (pushPermission === 'denied' && !pushSubscribed)}
+                className={`p-2 rounded-xl transition-colors ${
+                  pushSubscribed ? 'text-brand bg-brand/10' : 'text-slate-400 hover:text-brand bg-slate-50'
+                } ${pushLoading ? 'opacity-50 cursor-wait' : ''}`}
+                title={pushButtonTitle}
+              >
+                {pushSubscribed ? <Bell size={16} /> : <BellOff size={16} />}
+              </button>
+            )}
             <span className="text-[10px] lg:text-xs font-black text-brand-ocean tracking-tighter uppercase whitespace-nowrap">
               <span className="hidden xl:inline">ID המועדון: </span>
               <span className="bg-slate-100 px-2 py-1 rounded text-brand select-all">{clubId}</span>
@@ -78,7 +140,16 @@ const DashboardContent: React.FC = () => {
          </div>
       </header>
 
-      <Sidebar isOpen={isMobileMenuOpen} closeMobile={() => setIsMobileMenuOpen(false)} />
+      <Sidebar
+        isOpen={isMobileMenuOpen}
+        closeMobile={() => setIsMobileMenuOpen(false)}
+        isManager={isManager}
+        pushSubscribed={pushSubscribed}
+        pushLoading={pushLoading}
+        pushDisabled={pushLoading || (pushPermission === 'denied' && !pushSubscribed)}
+        pushButtonTitle={pushButtonTitle}
+        onTogglePush={togglePush}
+      />
       
       <main id="main-content" className="flex-1 transition-all duration-300 ease-in-out nav:mr-[248px] xl:mr-[280px]">
         <div className="pt-20 sm:pt-24 nav:pt-28 px-3 xs:px-4 sm:px-6 lg:px-8 xl:px-12 pb-10 sm:pb-14 md:pb-16">

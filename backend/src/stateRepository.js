@@ -159,6 +159,40 @@ async function clearClubData(client, clubId) {
   await client.query("DELETE FROM users WHERE club_id = $1", [clubId]);
 }
 
+async function readPushSubscriptions(client, clubId) {
+  const res = await client.query(
+    `
+      SELECT club_id, user_id, endpoint, p256dh, auth, user_agent
+      FROM push_subscriptions
+      WHERE club_id = $1
+    `,
+    [clubId]
+  );
+  return res.rows;
+}
+
+async function restorePushSubscriptions(client, subscriptions, validUserIds) {
+  for (const sub of subscriptions) {
+    if (!validUserIds.has(sub.user_id)) continue;
+    await client.query(
+      `
+        INSERT INTO push_subscriptions (
+          club_id, user_id, endpoint, p256dh, auth, user_agent
+        )
+        VALUES ($1,$2,$3,$4,$5,$6)
+        ON CONFLICT (endpoint) DO UPDATE SET
+          club_id = EXCLUDED.club_id,
+          user_id = EXCLUDED.user_id,
+          p256dh = EXCLUDED.p256dh,
+          auth = EXCLUDED.auth,
+          user_agent = EXCLUDED.user_agent,
+          updated_at = NOW()
+      `,
+      [sub.club_id, sub.user_id, sub.endpoint, sub.p256dh, sub.auth, sub.user_agent]
+    );
+  }
+}
+
 async function ensureClub(client, clubId, settings = {}) {
   await client.query(
     `
@@ -539,6 +573,8 @@ export async function writeState(clubId, state, expectedVersion) {
       );
     }
 
+    const existingPushSubscriptions = await readPushSubscriptions(client, clubId);
+
     await clearClubData(client, clubId);
 
     for (const [index, user] of incomingUsers.entries()) {
@@ -580,6 +616,8 @@ export async function writeState(clubId, state, expectedVersion) {
         );
       }
     }
+
+    await restorePushSubscriptions(client, existingPushSubscriptions, userIds);
 
     for (const shift of state.shifts || []) {
       await client.query(

@@ -6,16 +6,31 @@ import { isModuleHidden } from '../../utils/hiddenModules';
 import { 
   Users, Calendar, Clock, ClipboardList, 
   LifeBuoy, LogOut, CheckSquare, LayoutDashboard, 
-  BookOpen, FileText, X, Waves, RefreshCcw, Anchor, Banknote, Users2, Info
+  BookOpen, FileText, X, Waves, RefreshCcw, Anchor, Banknote, Users2, Info, Bell, BellOff
 } from 'lucide-react';
 
 interface SidebarProps {
   isOpen: boolean;
   closeMobile: () => void;
+  isManager?: boolean;
+  pushSubscribed?: boolean;
+  pushLoading?: boolean;
+  pushDisabled?: boolean;
+  pushButtonTitle?: string;
+  onTogglePush?: () => void;
 }
 
 // Fix: Correctly type the functional component props by passing SidebarProps to React.FC generic
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, closeMobile }) => {
+const Sidebar: React.FC<SidebarProps> = ({
+  isOpen,
+  closeMobile,
+  isManager = false,
+  pushSubscribed = false,
+  pushLoading = false,
+  pushDisabled = false,
+  pushButtonTitle = '',
+  onTogglePush,
+}) => {
   const { currentUser, logout, switchUser } = useAppStore();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -58,17 +73,33 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, closeMobile }) => {
     <>
       <div className={`fixed inset-0 bg-brand-ocean/60 z-[60] backdrop-blur-md transition-opacity duration-300 nav:hidden ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={closeMobile} />
       <aside id="sidebar" className={`fixed top-0 right-0 h-screen w-[86vw] max-w-[320px] xs:w-[320px] nav:w-[248px] xl:w-[280px] bg-white z-[70] border-l border-slate-200 transition-transform duration-300 ease-out flex flex-col ${isOpen ? 'translate-x-0 shadow-2xl' : 'translate-x-full'} nav:translate-x-0`}>
-        <div className="px-4 xs:px-6 nav:px-5 xl:px-6 pt-5 xs:pt-6 nav:pt-5 xl:pt-6 pb-6 nav:pb-7 xl:pb-8 flex justify-between items-center flex-row-reverse">
-          <div className="flex items-center gap-2.5 xl:gap-3 flex-row-reverse min-w-0">
-            <div className="w-10 h-10 brand-gradient rounded-xl flex items-center justify-center text-white shrink-0">
-               <Waves size={20} strokeWidth={2.5} />
+        <div className="px-4 xs:px-6 nav:px-5 xl:px-6 pt-5 xs:pt-6 nav:pt-5 xl:pt-6 pb-6 nav:pb-7 xl:pb-8">
+          <div className="flex justify-between items-center flex-row-reverse">
+            <div className="flex items-center gap-2.5 xl:gap-3 flex-row-reverse min-w-0">
+              <div className="w-10 h-10 brand-gradient rounded-xl flex items-center justify-center text-white shrink-0">
+                 <Waves size={20} strokeWidth={2.5} />
+              </div>
+              <div className="text-right min-w-0">
+                <h1 className="text-lg xl:text-xl font-black text-brand-ocean tracking-tighter leading-none truncate">FREEGULL</h1>
+                <p className="text-[9px] text-brand-dark font-black uppercase mt-1">FLOW MANAGEMENT</p>
+              </div>
             </div>
-            <div className="text-right min-w-0">
-              <h1 className="text-lg xl:text-xl font-black text-brand-ocean tracking-tighter leading-none truncate">FREEGULL</h1>
-              <p className="text-[9px] text-brand-dark font-black uppercase mt-1">FLOW MANAGEMENT</p>
-            </div>
+            <button onClick={closeMobile} className="nav:hidden p-2 text-slate-400"><X size={24}/></button>
           </div>
-          <button onClick={closeMobile} className="nav:hidden p-2 text-slate-400"><X size={24}/></button>
+
+          {isManager && onTogglePush && (
+            <button
+              onClick={onTogglePush}
+              disabled={pushDisabled}
+              title={pushButtonTitle}
+              className={`nav:hidden mt-3 w-full flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+                pushSubscribed ? 'text-brand bg-brand/10' : 'text-slate-600 bg-slate-50 hover:text-brand'
+              } ${pushLoading ? 'opacity-50 cursor-wait' : ''}`}
+            >
+              {pushSubscribed ? <Bell size={15} /> : <BellOff size={15} />}
+              <span>התראות מנהלים</span>
+            </button>
+          )}
         </div>
 
         <nav id="sidebar-nav" className="flex-1 overflow-y-auto py-2 px-3 xs:px-4 nav:px-3 xl:px-4 space-y-1.5 custom-scrollbar">

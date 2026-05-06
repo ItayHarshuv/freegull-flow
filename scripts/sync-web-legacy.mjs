@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '..');
-const sourceEntries = ['App.tsx', 'store.tsx', 'types.ts', 'components', 'utils'];
+const sourceEntries = ['App.tsx', 'store.tsx', 'types.ts', 'pushNotifications.ts', 'components', 'utils'];
 const targetDir = path.join(repoRoot, 'apps', 'web', 'src', 'legacy');
 
 function isIgnored(name) {

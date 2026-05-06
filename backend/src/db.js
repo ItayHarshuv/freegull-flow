@@ -1,7 +1,11 @@
-import dotenv from "dotenv";
 import pg from "pg";
 
-dotenv.config();
+try {
+  const dotenv = await import("dotenv");
+  dotenv?.default?.config?.();
+} catch {
+  // In docker-compose / production we rely on process.env.
+}
 
 const { Pool } = pg;
 

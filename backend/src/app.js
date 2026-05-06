@@ -13,6 +13,14 @@ import {
   writeState,
 } from "./stateRepository.js";
 import { pool } from "./db.js";
+import {
+  deletePushSubscriptionByEndpoint,
+  hasPushSubscription,
+  listPushSubscriptionsByClub,
+  upsertPushSubscription,
+} from "./pushRepository.js";
+import { getVapidPublicKey, isPushEnabled, sendWebPush } from "./pushService.js";
+import { computeAvailabilityNotification } from "./availabilityNotifications.js";
 
 const app = express();
 
@@ -118,6 +126,21 @@ const stateSchema = z.object({
 });
 const idParamSchema = z.object({ id: z.string().min(1) });
 const settingsBodySchema = z.record(z.string(), z.any());
+const pushSubscriptionBodySchema = z.object({
+  subscription: z.object({
+    endpoint: z.string().min(1),
+    keys: z.object({
+      p256dh: z.string().min(1),
+      auth: z.string().min(1),
+    }),
+  }),
+});
+const pushUnsubscribeBodySchema = z.object({
+  endpoint: z.string().min(1),
+});
+const pushSubscriptionStatusQuerySchema = z.object({
+  endpoint: z.string().min(1),
+});
 const closeShiftBodySchema = z.object({
   clubId: z.string().min(1, "clubId is required"),
   patch: z.record(z.string(), z.any()).optional(),
@@ -339,6 +362,16 @@ function sendRouteError(res, error) {
   return res.status(400).json({ error: error.message });
 }
 
+function isManagerRole(role) {
+  if (!role) return false;
+  return (
+    role === "Manager" ||
+    role === "Shift Manager" ||
+    role === "manager" ||
+    role === "shift-manager"
+  );
+}
+
 app.post("/auth/login", async (req, res) => {
   try {
     const { clubId, identifier } = loginBodySchema.parse(req.body || {});
@@ -389,6 +422,76 @@ app.get("/health", async (_req, res) => {
   }
 });
 
+app.get("/push/vapid-public-key", requireAuth, async (_req, res) => {
+  res.json({ enabled: isPushEnabled(), publicKey: getVapidPublicKey() });
+});
+
+app.post("/push/:clubId/subscriptions", requireAuth, async (req, res) => {
+  try {
+    const { clubId } = clubIdSchema.parse(req.params);
+    if (!enforceClubAccess(req, res, clubId)) return;
+
+    const user = await readUserById(clubId, req.auth.userId);
+    if (!user || !isManagerRole(user.role)) {
+      return res.status(403).json({ error: "Forbidden: managers only" });
+    }
+
+    const parsed = pushSubscriptionBodySchema.parse(req.body || {});
+    const { endpoint, keys } = parsed.subscription;
+    const id = await upsertPushSubscription({
+      clubId,
+      userId: req.auth.userId,
+      endpoint,
+      p256dh: keys.p256dh,
+      auth: keys.auth,
+      userAgent: req.get("user-agent") || null,
+    });
+    return res.status(201).json({ id });
+  } catch (error) {
+    return sendRouteError(res, error);
+  }
+});
+
+app.get("/push/:clubId/subscriptions/status", requireAuth, async (req, res) => {
+  try {
+    const { clubId } = clubIdSchema.parse(req.params);
+    if (!enforceClubAccess(req, res, clubId)) return;
+
+    const user = await readUserById(clubId, req.auth.userId);
+    if (!user || !isManagerRole(user.role)) {
+      return res.status(403).json({ error: "Forbidden: managers only" });
+    }
+
+    const { endpoint } = pushSubscriptionStatusQuerySchema.parse(req.query || {});
+    const subscribed = await hasPushSubscription({
+      clubId,
+      userId: req.auth.userId,
+      endpoint,
+    });
+    return res.json({ subscribed });
+  } catch (error) {
+    return sendRouteError(res, error);
+  }
+});
+
+app.delete("/push/:clubId/subscriptions", requireAuth, async (req, res) => {
+  try {
+    const { clubId } = clubIdSchema.parse(req.params);
+    if (!enforceClubAccess(req, res, clubId)) return;
+
+    const user = await readUserById(clubId, req.auth.userId);
+    if (!user || !isManagerRole(user.role)) {
+      return res.status(403).json({ error: "Forbidden: managers only" });
+    }
+
+    const parsed = pushUnsubscribeBodySchema.parse(req.body || {});
+    await deletePushSubscriptionByEndpoint({ clubId, endpoint: parsed.endpoint });
+    return res.status(204).send();
+  } catch (error) {
+    return sendRouteError(res, error);
+  }
+});
+
 app.get("/state/:clubId", requireAuth, async (req, res) => {
   try {
     const { clubId } = clubIdSchema.parse(req.params);
@@ -417,9 +520,51 @@ app.put("/state/:clubId", requireAuth, async (req, res) => {
     if (!enforceClubAccess(req, res, clubId)) return;
     console.log("[STATE_PUT_REQUEST_BODY]", { clubId, body: req.body });
     const parsed = stateSchema.parse(req.body);
+    const beforeState = await readState(clubId);
     await writeState(clubId, parsed.state, parsed.expectedVersion);
     const { state, version } = await readStateWithVersion(clubId);
+
     res.json({ ...state, serverVersion: version });
+
+    // Push notifications are best-effort and should never fail the state save.
+    try {
+      if (!isPushEnabled()) return;
+      const notification = computeAvailabilityNotification(
+        beforeState?.availability,
+        state?.availability
+      );
+      if (!notification) return;
+
+      const subs = await listPushSubscriptionsByClub({ clubId });
+      const payload = {
+        ...notification,
+        url: "/availability",
+      };
+
+      await Promise.all(
+        subs.map(async (sub) => {
+          const result = await sendWebPush(
+            {
+              endpoint: sub.endpoint,
+              p256dh: sub.p256dh,
+              auth: sub.auth,
+            },
+            payload
+          );
+
+          if (!result.ok) {
+            console.warn("[PUSH_DELIVERY_FAILED]", {
+              clubId,
+              endpoint: sub.endpoint,
+              statusCode: result.statusCode,
+              error: result.error,
+            });
+          }
+        })
+      );
+    } catch (e) {
+      console.warn("[PUSH_NOTIFY_FAILED]", e?.message || e);
+    }
   } catch (error) {
     if (error instanceof StateVersionConflictError) {
       const { clubId } = clubIdSchema.parse(req.params);
