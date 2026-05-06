@@ -1,4 +1,8 @@
-type CellValue = string | number | boolean | null | undefined;
+interface FormulaCell {
+  formula: string;
+}
+
+type CellValue = string | number | boolean | FormulaCell | null | undefined;
 
 export interface WorkbookSheet {
   name: string;
@@ -36,6 +40,11 @@ const buildCellXml = (value: CellValue, rowIndex: number, columnIndex: number) =
 
   if (typeof value === 'boolean') {
     return `<c r="${reference}" t="b"><v>${value ? 1 : 0}</v></c>`;
+  }
+
+  if (value && typeof value === 'object' && 'formula' in value) {
+    const formula = value.formula.startsWith('=') ? value.formula.slice(1) : value.formula;
+    return `<c r="${reference}"><f>${escapeXml(formula)}</f></c>`;
   }
 
   const stringValue = value == null ? '' : String(value);

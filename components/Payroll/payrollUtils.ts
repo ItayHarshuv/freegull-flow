@@ -196,6 +196,29 @@ export const exportPayrollEntryReport = (entry: PayrollEntry, selectedMonth: num
     bonuses: 0,
     travelCount: 0,
   });
+  const totalsRowNumber = dailyRows.length + 2;
+  const baseSalaryRowNumber = totalsRowNumber + 2;
+  const teachingBonusRowNumber = baseSalaryRowNumber + 1;
+  const travelBonusRowNumber = teachingBonusRowNumber + 1;
+  const workSalaryFormulaParts = dailyRows.map((_, index) => {
+    const rowNumber = index + 2;
+    return [
+      `C${rowNumber}*B${baseSalaryRowNumber}`,
+      `MIN(D${rowNumber},2)*B${baseSalaryRowNumber}*1.25`,
+      `MAX(D${rowNumber}-2,0)*B${baseSalaryRowNumber}*1.5`,
+      `E${rowNumber}*B${baseSalaryRowNumber}*1.5`,
+      `MIN(F${rowNumber},2)*B${baseSalaryRowNumber}*1.75`,
+      `MAX(F${rowNumber}-2,0)*B${baseSalaryRowNumber}*2`,
+    ].join('+');
+  });
+  const workSalaryFormula = workSalaryFormulaParts.length > 0
+    ? workSalaryFormulaParts.join('+')
+    : '0';
+  const finalSalaryFormula = [
+    workSalaryFormula,
+    `G${totalsRowNumber}*B${teachingBonusRowNumber}`,
+    `I${totalsRowNumber}*B${travelBonusRowNumber}`,
+  ].join('+');
 
   const hourRows = [
     ['תאריך', 'סה"כ שעות עבודה', 'שעות רגילות', 'שעות נוספות', 'שעות שבת/חג', 'שעות נוספות שבת/חג', 'שעות הדרכה', 'מכירות', 'נסיעות', 'הערות'],
@@ -212,6 +235,11 @@ export const exportPayrollEntryReport = (entry: PayrollEntry, selectedMonth: num
       row.notes,
     ]),
     ['סה"כ', totals.workHours, totals.regularHours, totals.extraHours, totals.shabatHours, totals.extraShabatHours, totals.teachingHours, totals.bonuses, totals.travelCount, ''],
+    [],
+    ['שכר בסיס לשעה', '', 'יש למלא ידנית'],
+    ['בונוס לשעת הדרכה', '', 'יש למלא ידנית'],
+    ['בונוס נסיעה', '', 'יש למלא ידנית'],
+    ['שכר סופי', { formula: finalSalaryFormula }, 'מחושב לפי שעות נוספות, שבת/חג, הדרכה ונסיעות'],
   ];
 
   const salesRows = [

@@ -85,10 +85,6 @@ const CalendarModule: React.FC = () => {
               <h2 className="text-2xl md:text-4xl font-black text-slate-900 tracking-tight leading-none">
                 {viewMode === 'calendar' ? `${monthNames[month]} ${year}` : `זמינות צוות - ${monthNames[month]}`}
               </h2>
-              <div className="bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-lg border border-emerald-100 flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest whitespace-nowrap">
-                 <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                 office@wind.co.il
-              </div>
            </div>
            <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-2">
              {viewMode === 'calendar' ? 'תצוגת אירועים ושיעורים' : 'תצוגת כוח אדם וזמינות'}
