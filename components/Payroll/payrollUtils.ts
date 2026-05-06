@@ -113,15 +113,19 @@ const buildDailyPayrollRows = (shifts: Shift[]) => {
     .map((row) => {
       const regularMinutes = Math.min(row.workMinutes, DAILY_REGULAR_MINUTES_LIMIT);
       const overtimeMinutes = Math.max(0, row.workMinutes - DAILY_REGULAR_MINUTES_LIMIT);
+      const extraAboveEightMinutes = Math.min(overtimeMinutes, 2 * 60);
+      const extraAboveTenMinutes = Math.max(0, overtimeMinutes - (2 * 60));
       const premiumHolidayDay = isOneHundredFiftyPercentDay(row.date);
 
       return {
         date: row.date,
         workHours: formatHours(row.workMinutes),
         regularHours: premiumHolidayDay ? 0 : formatHours(regularMinutes),
-        extraHours: premiumHolidayDay ? 0 : formatHours(overtimeMinutes),
+        extraAboveEightHours: premiumHolidayDay ? 0 : formatHours(extraAboveEightMinutes),
+        extraAboveTenHours: premiumHolidayDay ? 0 : formatHours(extraAboveTenMinutes),
         shabatHours: premiumHolidayDay ? formatHours(regularMinutes) : 0,
-        extraShabatHours: premiumHolidayDay ? formatHours(overtimeMinutes) : 0,
+        extraShabatAboveEightHours: premiumHolidayDay ? formatHours(extraAboveEightMinutes) : 0,
+        extraShabatAboveTenHours: premiumHolidayDay ? formatHours(extraAboveTenMinutes) : 0,
         teachingHours: Number(row.teachingHours.toFixed(2)),
         bonuses: row.bonuses,
         travelCount: row.travelCount,
@@ -180,18 +184,22 @@ export const exportPayrollEntryReport = (entry: PayrollEntry, selectedMonth: num
   const totals = dailyRows.reduce((sum, row) => ({
     workHours: sum.workHours + row.workHours,
     regularHours: sum.regularHours + row.regularHours,
-    extraHours: sum.extraHours + row.extraHours,
+    extraAboveEightHours: sum.extraAboveEightHours + row.extraAboveEightHours,
+    extraAboveTenHours: sum.extraAboveTenHours + row.extraAboveTenHours,
     shabatHours: sum.shabatHours + row.shabatHours,
-    extraShabatHours: sum.extraShabatHours + row.extraShabatHours,
+    extraShabatAboveEightHours: sum.extraShabatAboveEightHours + row.extraShabatAboveEightHours,
+    extraShabatAboveTenHours: sum.extraShabatAboveTenHours + row.extraShabatAboveTenHours,
     teachingHours: sum.teachingHours + row.teachingHours,
     bonuses: sum.bonuses + row.bonuses,
     travelCount: sum.travelCount + row.travelCount,
   }), {
     workHours: 0,
     regularHours: 0,
-    extraHours: 0,
+    extraAboveEightHours: 0,
+    extraAboveTenHours: 0,
     shabatHours: 0,
-    extraShabatHours: 0,
+    extraShabatAboveEightHours: 0,
+    extraShabatAboveTenHours: 0,
     teachingHours: 0,
     bonuses: 0,
     travelCount: 0,
@@ -200,45 +208,47 @@ export const exportPayrollEntryReport = (entry: PayrollEntry, selectedMonth: num
   const baseSalaryRowNumber = totalsRowNumber + 2;
   const teachingBonusRowNumber = baseSalaryRowNumber + 1;
   const travelBonusRowNumber = teachingBonusRowNumber + 1;
-  const workSalaryFormulaParts = dailyRows.map((_, index) => {
-    const rowNumber = index + 2;
-    return [
-      `C${rowNumber}*B${baseSalaryRowNumber}`,
-      `MIN(D${rowNumber},2)*B${baseSalaryRowNumber}*1.25`,
-      `MAX(D${rowNumber}-2,0)*B${baseSalaryRowNumber}*1.5`,
-      `E${rowNumber}*B${baseSalaryRowNumber}*1.5`,
-      `MIN(F${rowNumber},2)*B${baseSalaryRowNumber}*1.75`,
-      `MAX(F${rowNumber}-2,0)*B${baseSalaryRowNumber}*2`,
-    ].join('+');
-  });
-  const workSalaryFormula = workSalaryFormulaParts.length > 0
-    ? workSalaryFormulaParts.join('+')
-    : '0';
-  const finalSalaryFormula = [
-    workSalaryFormula,
-    `G${totalsRowNumber}*B${teachingBonusRowNumber}`,
-    `I${totalsRowNumber}*B${travelBonusRowNumber}`,
-  ].join('+');
+  const regularSalaryRowNumber = travelBonusRowNumber + 2;
+  const extraAboveEightSalaryRowNumber = regularSalaryRowNumber + 1;
+  const extraAboveTenSalaryRowNumber = extraAboveEightSalaryRowNumber + 1;
+  const shabatSalaryRowNumber = extraAboveTenSalaryRowNumber + 1;
+  const shabatExtraAboveEightSalaryRowNumber = shabatSalaryRowNumber + 1;
+  const shabatExtraAboveTenSalaryRowNumber = shabatExtraAboveEightSalaryRowNumber + 1;
+  const drivingSalaryRowNumber = shabatExtraAboveTenSalaryRowNumber + 1;
+  const teachingSalaryRowNumber = drivingSalaryRowNumber + 1;
+
+  const finalSalaryFormula = `SUM(B${regularSalaryRowNumber}:B${teachingSalaryRowNumber})`;
 
   const hourRows = [
-    ['תאריך', 'סה"כ שעות עבודה', 'שעות רגילות', 'שעות נוספות', 'שעות שבת/חג', 'שעות נוספות שבת/חג', 'שעות הדרכה', 'מכירות', 'נסיעות', 'הערות'],
+    ['תאריך', 'סה"כ שעות עבודה', 'שעות רגילות', 'שעות נוספות מעל 8', 'שעות נוספות מעל 10', 'שעות שבת/חג', 'שעות נוספות שבת/חג מעל 8', 'שעות נוספות שבת/חג מעל 10', 'שעות הדרכה', 'מכירות', 'נסיעות', 'הערות'],
     ...dailyRows.map((row) => [
       new Date(row.date).toLocaleDateString('he-IL'),
       row.workHours,
       row.regularHours,
-      row.extraHours,
+      row.extraAboveEightHours,
+      row.extraAboveTenHours,
       row.shabatHours,
-      row.extraShabatHours,
+      row.extraShabatAboveEightHours,
+      row.extraShabatAboveTenHours,
       row.teachingHours,
       row.bonuses,
       row.travelCount,
       row.notes,
     ]),
-    ['סה"כ', totals.workHours, totals.regularHours, totals.extraHours, totals.shabatHours, totals.extraShabatHours, totals.teachingHours, totals.bonuses, totals.travelCount, ''],
+    ['סה"כ', totals.workHours, totals.regularHours, totals.extraAboveEightHours, totals.extraAboveTenHours, totals.shabatHours, totals.extraShabatAboveEightHours, totals.extraShabatAboveTenHours, totals.teachingHours, totals.bonuses, totals.travelCount, ''],
     [],
     ['שכר בסיס לשעה', '', 'יש למלא ידנית'],
     ['בונוס לשעת הדרכה', '', 'יש למלא ידנית'],
     ['בונוס נסיעה', '', 'יש למלא ידנית'],
+    [],
+    ['שעות רגילות', { formula: `C${totalsRowNumber}*B${baseSalaryRowNumber}` }, '100%'],
+    ['שעות נוספות מעל 8 שעות', { formula: `D${totalsRowNumber}*B${baseSalaryRowNumber}*1.25` }, '125%'],
+    ['שעות נוספות מעל 10 שעות', { formula: `E${totalsRowNumber}*B${baseSalaryRowNumber}*1.5` }, '150%'],
+    ['שעות שבת/חג', { formula: `F${totalsRowNumber}*B${baseSalaryRowNumber}*1.5` }, '150%'],
+    ['שעות נוספות שבת/חג מעל 8 שעות', { formula: `G${totalsRowNumber}*B${baseSalaryRowNumber}*1.75` }, '175%'],
+    ['שעות נוספות שבת/חג מעל 10 שעות', { formula: `H${totalsRowNumber}*B${baseSalaryRowNumber}*2` }, '200%'],
+    ['נסיעות', { formula: `K${totalsRowNumber}*B${travelBonusRowNumber}` }, 'סה"כ נסיעות כפול בונוס נסיעה'],
+    ['שעות הדרכה', { formula: `I${totalsRowNumber}*B${teachingBonusRowNumber}` }, 'סה"כ שעות הדרכה כפול בונוס הדרכה'],
     ['שכר סופי', { formula: finalSalaryFormula }, 'מחושב לפי שעות נוספות, שבת/חג, הדרכה ונסיעות'],
   ];
 
