@@ -3,6 +3,14 @@ import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { ZodError, z } from 'zod';
+import { computeAvailabilityNotification } from '../../../backend/src/availabilityNotifications.js';
+import {
+  deletePushSubscriptionByEndpoint,
+  hasPushSubscription,
+  listPushSubscriptionsByClub,
+  upsertPushSubscription,
+} from '../../../backend/src/pushRepository.js';
+import { getVapidPublicKey, isPushEnabled, sendWebPush } from '../../../backend/src/pushService.js';
 
 const AUTH_COOKIE_NAME = 'freegull_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 14;
@@ -73,6 +81,21 @@ const clubIdSchema = z.object({ clubId: z.string().min(1) });
 const stateSchema = z.object({
   state: z.record(z.string(), z.any()),
   expectedVersion: z.number().int().nonnegative().optional(),
+});
+const pushSubscriptionBodySchema = z.object({
+  subscription: z.object({
+    endpoint: z.string().min(1),
+    keys: z.object({
+      p256dh: z.string().min(1),
+      auth: z.string().min(1),
+    }),
+  }),
+});
+const pushUnsubscribeBodySchema = z.object({
+  endpoint: z.string().min(1),
+});
+const pushSubscriptionStatusQuerySchema = z.object({
+  endpoint: z.string().min(1),
 });
 const loginBodySchema = z.object({
   clubId: z.string().min(1),
@@ -228,6 +251,16 @@ function mapUserRow(row: Record<string, any>) {
     form101Data: row.form_101_data ?? undefined,
     form101FileName: row.form_101_file_name ?? undefined,
   };
+}
+
+function isManagerRole(role: string | null | undefined) {
+  if (!role) return false;
+  return (
+    role === 'Manager' ||
+    role === 'Shift Manager' ||
+    role === 'manager' ||
+    role === 'shift-manager'
+  );
 }
 
 async function readUserByIdentifier(clubId: string, identifier: string) {
@@ -411,6 +444,72 @@ app.post('/auth/logout', requireAuth, async (c) => {
   return c.body(null, 204);
 });
 
+app.get('/push/vapid-public-key', requireAuth, async (c) => {
+  return c.json({ enabled: isPushEnabled(), publicKey: getVapidPublicKey() });
+});
+
+app.post('/push/:clubId/subscriptions', requireAuth, async (c) => {
+  const { clubId } = clubIdSchema.parse(c.req.param());
+  const denied = enforceClubAccess(c, clubId);
+  if (denied) return denied;
+
+  const auth = c.get('auth') as AuthContext;
+  const user = await readUserById(clubId, auth.userId);
+  if (!user || !isManagerRole(user.role)) {
+    return c.json({ error: 'Forbidden: managers only' }, 403);
+  }
+
+  const parsed = pushSubscriptionBodySchema.parse(await c.req.json());
+  const { endpoint, keys } = parsed.subscription;
+  const id = await upsertPushSubscription({
+    clubId,
+    userId: auth.userId,
+    endpoint,
+    p256dh: keys.p256dh,
+    auth: keys.auth,
+    userAgent: c.req.header('user-agent') || null,
+  });
+
+  return c.json({ id }, 201);
+});
+
+app.get('/push/:clubId/subscriptions/status', requireAuth, async (c) => {
+  const { clubId } = clubIdSchema.parse(c.req.param());
+  const denied = enforceClubAccess(c, clubId);
+  if (denied) return denied;
+
+  const auth = c.get('auth') as AuthContext;
+  const user = await readUserById(clubId, auth.userId);
+  if (!user || !isManagerRole(user.role)) {
+    return c.json({ error: 'Forbidden: managers only' }, 403);
+  }
+
+  const { endpoint } = pushSubscriptionStatusQuerySchema.parse(c.req.query());
+  const subscribed = await hasPushSubscription({
+    clubId,
+    userId: auth.userId,
+    endpoint,
+  });
+
+  return c.json({ subscribed });
+});
+
+app.delete('/push/:clubId/subscriptions', requireAuth, async (c) => {
+  const { clubId } = clubIdSchema.parse(c.req.param());
+  const denied = enforceClubAccess(c, clubId);
+  if (denied) return denied;
+
+  const auth = c.get('auth') as AuthContext;
+  const user = await readUserById(clubId, auth.userId);
+  if (!user || !isManagerRole(user.role)) {
+    return c.json({ error: 'Forbidden: managers only' }, 403);
+  }
+
+  const parsed = pushUnsubscribeBodySchema.parse(await c.req.json());
+  await deletePushSubscriptionByEndpoint({ clubId, endpoint: parsed.endpoint });
+  return c.body(null, 204);
+});
+
 app.get('/state/:clubId', requireAuth, async (c) => {
   const { clubId } = clubIdSchema.parse(c.req.param());
   const denied = enforceClubAccess(c, clubId);
@@ -442,8 +541,51 @@ app.put('/state/:clubId', requireAuth, async (c) => {
   const { StateVersionConflictError, readStateWithVersion, writeState } = await getLegacyStateRepositoryModule();
 
   try {
+    const beforeState = await readStateWithVersion(clubId);
     await writeState(clubId, parsed.state, parsed.expectedVersion);
     const { state, version } = await readStateWithVersion(clubId);
+
+    try {
+      if (isPushEnabled()) {
+        const notification = computeAvailabilityNotification(
+          beforeState?.state?.availability,
+          state?.availability
+        );
+
+        if (notification) {
+          const subs = await listPushSubscriptionsByClub({ clubId });
+          const payload = {
+            ...notification,
+            url: '/availability',
+          };
+
+          await Promise.all(
+            subs.map(async (sub: any) => {
+              const result = await sendWebPush(
+                {
+                  endpoint: sub.endpoint,
+                  p256dh: sub.p256dh,
+                  auth: sub.auth,
+                },
+                payload
+              );
+
+              if (!result.ok) {
+                console.warn('[PUSH_DELIVERY_FAILED]', {
+                  clubId,
+                  endpoint: sub.endpoint,
+                  statusCode: result.statusCode,
+                  error: result.error,
+                });
+              }
+            })
+          );
+        }
+      }
+    } catch (error) {
+      console.warn('[PUSH_NOTIFY_FAILED]', error instanceof Error ? error.message : error);
+    }
+
     return c.json({ ...state, serverVersion: version });
   } catch (error) {
     if (error instanceof StateVersionConflictError) {
