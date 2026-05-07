@@ -1,4 +1,10 @@
 @import "tailwindcss";
+@source "../../../App.tsx";
+@source "../../../store.tsx";
+@source "../../../types.ts";
+@source "../../../pushNotifications.ts";
+@source "../../../components";
+@source "../../../utils";
 
 @theme {
   --color-brand: #00a9b7;
