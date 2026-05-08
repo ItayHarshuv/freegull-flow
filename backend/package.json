@@ -2,12 +2,14 @@
   "name": "backend",
   "version": "1.0.0",
   "type": "module",
-  "main": "src/server.js",
+  "main": "src/server.ts",
   "scripts": {
-    "dev": "nodemon src/server.js",
-    "start": "node src/server.js",
-    "migrate": "node scripts/runMigrations.js",
-    "import:blob": "node scripts/importFromBlob.js"
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "migrate": "tsx scripts/runMigrations.ts",
+    "import:blob": "tsx scripts/importFromBlob.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit"
   },
   "keywords": [],
   "author": "",
@@ -24,6 +26,14 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "@types/compression": "^1.8.1",
+    "@types/cookie-parser": "^1.4.9",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.5",
+    "@types/node": "^22.14.0",
+    "@types/pg": "^8.11.6",
+    "@types/web-push": "^3.6.4",
+    "tsx": "^4.20.5",
+    "typescript": "^5.8.2"
   }
 }

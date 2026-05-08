@@ -11,6 +11,7 @@ import {
   upsertPushSubscription,
 } from '../../../backend/src/pushRepository.js';
 import { getVapidPublicKey, isPushEnabled, sendWebPush } from '../../../backend/src/pushService.js';
+import type { UserRow } from '../../../backend/src/types.js';
 
 const AUTH_COOKIE_NAME = 'freegull_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 14;
@@ -231,7 +232,7 @@ function buildCookieOptions() {
   };
 }
 
-function mapUserRow(row: Record<string, any>) {
+function mapUserRow(row: UserRow) {
   return {
     id: row.id,
     name: row.name,
@@ -239,7 +240,9 @@ function mapUserRow(row: Record<string, any>) {
     phone: row.phone,
     role: row.role,
     avatar: row.avatar || '',
-    certifications: Array.isArray(row.certifications) ? row.certifications.filter(Boolean) : [],
+    certifications: Array.isArray(row.certifications)
+      ? row.certifications.filter((cert): cert is string => Boolean(cert))
+      : [],
     isArchived: row.is_archived,
     isFullTime: row.is_full_time,
     fixedDayOff: row.fixed_day_off,
@@ -266,7 +269,7 @@ function isManagerRole(role: string | null | undefined) {
 async function readUserByIdentifier(clubId: string, identifier: string) {
   const normalizedIdentifier = identifier.trim();
   const pool = await getPool();
-  const res = await pool.query(
+  const res = await pool.query<UserRow>(
     `
       SELECT
         u.*,
@@ -291,7 +294,7 @@ async function readUserByIdentifier(clubId: string, identifier: string) {
 
 async function readUserById(clubId: string, userId: string) {
   const pool = await getPool();
-  const res = await pool.query(
+  const res = await pool.query<UserRow>(
     `
       SELECT
         u.*,
@@ -560,7 +563,7 @@ app.put('/state/:clubId', requireAuth, async (c) => {
           };
 
           await Promise.all(
-            subs.map(async (sub: any) => {
+            subs.map(async (sub) => {
               const result = await sendWebPush(
                 {
                   endpoint: sub.endpoint,

@@ -1,4 +1,14 @@
 import { pool } from "./db.js";
+import type { PushSubscriptionRow } from "./types.js";
+
+export interface UpsertPushSubscriptionInput {
+  clubId: string;
+  userId: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  userAgent: string | null;
+}
 
 export async function upsertPushSubscription({
   clubId,
@@ -7,8 +17,8 @@ export async function upsertPushSubscription({
   p256dh,
   auth,
   userAgent,
-}) {
-  const res = await pool.query(
+}: UpsertPushSubscriptionInput): Promise<string | null> {
+  const res = await pool.query<{ id: string }>(
     `
       INSERT INTO push_subscriptions (
         club_id, user_id, endpoint, p256dh, auth, user_agent
@@ -28,7 +38,13 @@ export async function upsertPushSubscription({
   return res.rows[0]?.id ?? null;
 }
 
-export async function deletePushSubscriptionByEndpoint({ clubId, endpoint }) {
+export async function deletePushSubscriptionByEndpoint({
+  clubId,
+  endpoint,
+}: {
+  clubId: string;
+  endpoint: string;
+}): Promise<void> {
   await pool.query(
     `
       DELETE FROM push_subscriptions
@@ -38,7 +54,15 @@ export async function deletePushSubscriptionByEndpoint({ clubId, endpoint }) {
   );
 }
 
-export async function hasPushSubscription({ clubId, userId, endpoint }) {
+export async function hasPushSubscription({
+  clubId,
+  userId,
+  endpoint,
+}: {
+  clubId: string;
+  userId: string;
+  endpoint: string;
+}): Promise<boolean> {
   const res = await pool.query(
     `
       SELECT 1
@@ -53,8 +77,12 @@ export async function hasPushSubscription({ clubId, userId, endpoint }) {
   return (res.rowCount || 0) > 0;
 }
 
-export async function listPushSubscriptionsByClub({ clubId }) {
-  const res = await pool.query(
+export async function listPushSubscriptionsByClub({
+  clubId,
+}: {
+  clubId: string;
+}): Promise<PushSubscriptionRow[]> {
+  const res = await pool.query<PushSubscriptionRow>(
     `
       SELECT
         id,
@@ -71,4 +99,3 @@ export async function listPushSubscriptionsByClub({ clubId }) {
   );
   return res.rows;
 }
-

@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const migrationsDir = path.resolve(__dirname, "../migrations");
 
-async function ensureMigrationsTable() {
+async function ensureMigrationsTable(): Promise<void> {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       id TEXT PRIMARY KEY,
@@ -16,7 +16,7 @@ async function ensureMigrationsTable() {
   `);
 }
 
-async function run() {
+async function run(): Promise<void> {
   await ensureMigrationsTable();
 
   const files = (await fs.readdir(migrationsDir))
@@ -28,7 +28,7 @@ async function run() {
       "SELECT 1 FROM schema_migrations WHERE id = $1 LIMIT 1",
       [file]
     );
-    if (existing.rowCount > 0) {
+    if ((existing.rowCount ?? 0) > 0) {
       console.log(`Skipping ${file}`);
       continue;
     }
@@ -36,7 +36,9 @@ async function run() {
     const sql = await fs.readFile(path.join(migrationsDir, file), "utf8");
     await withTx(async (client) => {
       await client.query(sql);
-      await client.query("INSERT INTO schema_migrations (id) VALUES ($1)", [file]);
+      await client.query("INSERT INTO schema_migrations (id) VALUES ($1)", [
+        file,
+      ]);
     });
     console.log(`Applied ${file}`);
   }
@@ -47,7 +49,7 @@ run()
     await pool.end();
     console.log("Migrations complete");
   })
-  .catch(async (error) => {
+  .catch(async (error: unknown) => {
     console.error(error);
     await pool.end();
     process.exit(1);

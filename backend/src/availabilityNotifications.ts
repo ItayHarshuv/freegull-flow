@@ -1,23 +1,49 @@
-function parseDateParts(dateStr) {
+import type { AvailabilityEntry } from "./types.js";
+
+interface DateParts {
+  y: number;
+  m: number;
+  d: number;
+}
+
+interface NormalizedAvailability {
+  isAvailable: boolean;
+  isAllDay: boolean;
+  startTime: string;
+  endTime: string;
+}
+
+export interface AvailabilityNotification {
+  title: string;
+  body: string;
+}
+
+function parseDateParts(dateStr: unknown): DateParts | null {
   const [y, m, d] = String(dateStr || "").split("-");
   if (!y || !m || !d) return null;
   return { y: Number(y), m: Number(m), d: Number(d) };
 }
 
-function formatDayMonth(dateStr) {
+function formatDayMonth(dateStr: unknown): string {
   const parts = parseDateParts(dateStr);
   if (!parts) return String(dateStr || "");
   return `${parts.d}.${parts.m}`;
 }
 
-function formatWeekday(dateStr) {
+function formatWeekday(dateStr: unknown): string {
   const parts = parseDateParts(dateStr);
   if (!parts) return "";
   const dt = new Date(Date.UTC(parts.y, parts.m - 1, parts.d));
   return dt.toLocaleDateString("he-IL", { weekday: "long", timeZone: "UTC" });
 }
 
-function formatWindow(a) {
+function formatTime(timeStr: unknown): string {
+  const [hours, minutes] = String(timeStr || "").split(":");
+  if (!hours || !minutes) return String(timeStr || "");
+  return `${Number(hours)}:${minutes}`;
+}
+
+function formatWindow(a: AvailabilityEntry | undefined): string {
   if (!a?.isAvailable) return "לא זמין";
   if (a?.isAllDay) return "כל היום";
   const start = formatTime(a?.startTime);
@@ -28,17 +54,13 @@ function formatWindow(a) {
   return "זמין";
 }
 
-function keyFor(a) {
+function keyFor(a: Partial<AvailabilityEntry> | undefined): string {
   return `${a?.userId || ""}|${a?.date || ""}`;
 }
 
-function formatTime(timeStr) {
-  const [hours, minutes] = String(timeStr || "").split(":");
-  if (!hours || !minutes) return String(timeStr || "");
-  return `${Number(hours)}:${minutes}`;
-}
-
-function normalizeAvailabilityEntry(entry) {
+function normalizeAvailabilityEntry(
+  entry: Partial<AvailabilityEntry> | undefined
+): NormalizedAvailability {
   return {
     isAvailable: Boolean(entry?.isAvailable),
     isAllDay: Boolean(entry?.isAllDay),
@@ -47,7 +69,10 @@ function normalizeAvailabilityEntry(entry) {
   };
 }
 
-function didAvailabilityChange(before, after) {
+function didAvailabilityChange(
+  before: AvailabilityEntry | undefined,
+  after: AvailabilityEntry | undefined
+): boolean {
   if (!before || !after) {
     return Boolean(after);
   }
@@ -63,12 +88,15 @@ function didAvailabilityChange(before, after) {
   );
 }
 
-function buildChangeLine(entry, includeUserName = false) {
+function buildChangeLine(entry: AvailabilityEntry, includeUserName = false): string {
   const prefix = includeUserName ? `${entry?.userName || "משתמש"}: ` : "";
   return `${prefix}${formatWeekday(entry?.date)} ${formatDayMonth(entry?.date)} - ${formatWindow(entry)}`;
 }
 
-export function computeAvailabilityNotification(prevAvailability, nextAvailability) {
+export function computeAvailabilityNotification(
+  prevAvailability: AvailabilityEntry[] | undefined,
+  nextAvailability: AvailabilityEntry[] | undefined
+): AvailabilityNotification | null {
   const prev = Array.isArray(prevAvailability) ? prevAvailability : [];
   const next = Array.isArray(nextAvailability) ? nextAvailability : [];
 
@@ -76,7 +104,7 @@ export function computeAvailabilityNotification(prevAvailability, nextAvailabili
   const nextByKey = new Map(next.map((a) => [keyFor(a), a]));
 
   const keys = new Set([...prevByKey.keys(), ...nextByKey.keys()]);
-  const changedEntries = [];
+  const changedEntries: AvailabilityEntry[] = [];
 
   for (const key of keys) {
     const before = prevByKey.get(key);
@@ -91,9 +119,13 @@ export function computeAvailabilityNotification(prevAvailability, nextAvailabili
     return null;
   }
 
-  changedEntries.sort((a, b) => String(a?.date || "").localeCompare(String(b?.date || "")));
+  changedEntries.sort((a, b) =>
+    String(a?.date || "").localeCompare(String(b?.date || ""))
+  );
 
-  const userNames = [...new Set(changedEntries.map((entry) => entry?.userName).filter(Boolean))];
+  const userNames = [
+    ...new Set(changedEntries.map((entry) => entry?.userName).filter(Boolean)),
+  ];
   const includeUserName = userNames.length > 1;
   const title =
     userNames.length === 1 ? `${userNames[0]} עדכנו אילוצים` : "עודכנו אילוצים";
@@ -103,4 +135,3 @@ export function computeAvailabilityNotification(prevAvailability, nextAvailabili
 
   return { title, body };
 }
-

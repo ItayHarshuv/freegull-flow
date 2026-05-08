@@ -1,4 +1,21 @@
+import type { PoolClient } from "pg";
 import { withTx } from "./db.js";
+import type {
+  ActiveShiftPayload,
+  ClubSettings,
+  ClubState,
+  ConfirmedShift,
+  KnowledgeFile,
+  Lesson,
+  PushSubscriptionRow,
+  Rental,
+  SeaEvent,
+  Shift,
+  ShiftBonus,
+  Task,
+  User,
+  WhatsappTemplate,
+} from "./types.js";
 
 export class StateVersionConflictError extends Error {
   constructor(message = "State version conflict") {
@@ -8,14 +25,16 @@ export class StateVersionConflictError extends Error {
 }
 
 export class StateValidationError extends Error {
-  constructor(message, path) {
+  public readonly path?: string;
+
+  constructor(message: string, path?: string) {
     super(message);
     this.name = "StateValidationError";
     this.path = path;
   }
 }
 
-const DEFAULT_STATE = {
+const DEFAULT_STATE: Omit<ClubState, "clubId" | "clubSettings"> = {
   currentUser: null,
   isEditorMode: false,
   isTourActive: false,
@@ -37,46 +56,25 @@ const DEFAULT_STATE = {
   lastSyncTime: "",
 };
 
-const TABLES_TO_CLEAR = [
-  "user_certifications uc USING users u",
-  "shift_bonuses sb USING shifts s",
-  "task_assignees ta USING tasks t",
-  "event_boats eb USING sea_events e",
-  "event_participants ep USING sea_events e",
-  "active_shifts",
-  "confirmed_shifts",
-  "lessons",
-  "rentals",
-  "tasks",
-  "leads",
-  "availability",
-  "sea_events",
-  "whatsapp_templates",
-  "knowledge_files",
-  "club_rental_items",
-  "club_rental_statuses",
-  "shifts",
-  "users",
-];
-
 const PHONE_REGEX = /^(?:\+\d+|0\d+)$/;
 
-function toDateString(value) {
+function toDateString(value: unknown): string | null {
   if (!value) return null;
   if (typeof value === "string") return value;
-  return new Date(value).toISOString().slice(0, 10);
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  return new Date(value as string | number).toISOString().slice(0, 10);
 }
 
-function normalizeString(value) {
+function normalizeString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function normalizeOptionalString(value) {
+function normalizeOptionalString(value: unknown): string | null {
   const normalized = normalizeString(value);
   return normalized || null;
 }
 
-function normalizePhone(value) {
+function normalizePhone(value: unknown): string {
   const normalized = normalizeString(value);
   if (!normalized) return "";
 
@@ -84,7 +82,11 @@ function normalizePhone(value) {
   return normalized.startsWith("+") ? `+${digitsOnly}` : digitsOnly;
 }
 
-function validatePhone(value, path, { required = false } = {}) {
+function validatePhone(
+  value: unknown,
+  path: string,
+  { required = false }: { required?: boolean } = {}
+): string | null {
   const normalized = normalizePhone(value);
   if (!normalized) {
     if (required) {
@@ -103,29 +105,48 @@ function validatePhone(value, path, { required = false } = {}) {
   return normalized;
 }
 
-function requireUserId(value, userIds, path) {
+function requireUserId(
+  value: unknown,
+  userIds: Set<string>,
+  path: string
+): string {
   const normalized = normalizeOptionalString(value);
   if (!normalized) {
     throw new StateValidationError(`${path} is required`, path);
   }
   if (!userIds.has(normalized)) {
-    throw new StateValidationError(`${path} must reference an existing user id`, path);
+    throw new StateValidationError(
+      `${path} must reference an existing user id`,
+      path
+    );
   }
   return normalized;
 }
 
-function resolveOptionalUserId(value, userIds, path) {
+function resolveOptionalUserId(
+  value: unknown,
+  userIds: Set<string>,
+  path: string
+): string | null {
   const normalized = normalizeOptionalString(value);
   if (!normalized) {
     return null;
   }
   if (!userIds.has(normalized)) {
-    throw new StateValidationError(`${path} must reference an existing user id`, path);
+    throw new StateValidationError(
+      `${path} must reference an existing user id`,
+      path
+    );
   }
   return normalized;
 }
 
-function resolveTaskCreatorId(value, userIds, userIdsByName, path) {
+function resolveTaskCreatorId(
+  value: unknown,
+  userIds: Set<string>,
+  userIdsByName: Map<string, string[]>,
+  path: string
+): string {
   const normalized = normalizeOptionalString(value);
   if (!normalized) {
     throw new StateValidationError(`${path} is required`, path);
@@ -139,10 +160,13 @@ function resolveTaskCreatorId(value, userIds, userIdsByName, path) {
     return matchingIds[0];
   }
 
-  throw new StateValidationError(`${path} must reference an existing user id`, path);
+  throw new StateValidationError(
+    `${path} must reference an existing user id`,
+    path
+  );
 }
 
-async function clearClubData(client, clubId) {
+async function clearClubData(client: PoolClient, clubId: string): Promise<void> {
   await client.query("DELETE FROM active_shifts WHERE club_id = $1", [clubId]);
   await client.query("DELETE FROM confirmed_shifts WHERE club_id = $1", [clubId]);
   await client.query("DELETE FROM lessons WHERE club_id = $1", [clubId]);
@@ -159,8 +183,11 @@ async function clearClubData(client, clubId) {
   await client.query("DELETE FROM users WHERE club_id = $1", [clubId]);
 }
 
-async function readPushSubscriptions(client, clubId) {
-  const res = await client.query(
+async function readPushSubscriptions(
+  client: PoolClient,
+  clubId: string
+): Promise<PushSubscriptionRow[]> {
+  const res = await client.query<PushSubscriptionRow>(
     `
       SELECT club_id, user_id, endpoint, p256dh, auth, user_agent
       FROM push_subscriptions
@@ -171,7 +198,11 @@ async function readPushSubscriptions(client, clubId) {
   return res.rows;
 }
 
-async function restorePushSubscriptions(client, subscriptions, validUserIds) {
+async function restorePushSubscriptions(
+  client: PoolClient,
+  subscriptions: PushSubscriptionRow[],
+  validUserIds: Set<string>
+): Promise<void> {
   for (const sub of subscriptions) {
     if (!validUserIds.has(sub.user_id)) continue;
     await client.query(
@@ -193,7 +224,11 @@ async function restorePushSubscriptions(client, subscriptions, validUserIds) {
   }
 }
 
-async function ensureClub(client, clubId, settings = {}) {
+async function ensureClub(
+  client: PoolClient,
+  clubId: string,
+  settings: Partial<ClubSettings> = {}
+): Promise<void> {
   await client.query(
     `
       INSERT INTO clubs (
@@ -226,11 +261,222 @@ async function ensureClub(client, clubId, settings = {}) {
   );
 }
 
-async function readStateTx(client, clubId) {
-  const [clubRowRes, usersRes, certsRes, shiftsRes, bonusesRes, activeShiftsRes] = await Promise.all([
-    client.query("SELECT * FROM clubs WHERE id = $1 LIMIT 1", [clubId]),
-    client.query("SELECT * FROM users WHERE club_id = $1", [clubId]),
-    client.query(
+interface ClubRow {
+  id: string;
+  state_version: number | string | null;
+  landline: string | null;
+  mobile: string | null;
+  location_text: string | null;
+  maps_url: string | null;
+  bank_account_name: string | null;
+  bank_name: string | null;
+  bank_branch: string | null;
+  bank_account_number: string | null;
+}
+
+interface UserRowRaw {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: string;
+  avatar: string | null;
+  is_archived: boolean;
+  is_full_time: boolean | null;
+  fixed_day_off: number | string | null;
+  can_add_bonuses: boolean | null;
+  bank_name: string | null;
+  bank_branch: string | null;
+  account_number: string | null;
+  has_form_101: boolean | null;
+  form_101_data: unknown;
+  form_101_file_name: string | null;
+  quick_code: string | null;
+}
+
+interface UserCertRow {
+  user_id: string;
+  certification: string;
+}
+
+interface ShiftRow {
+  id: string;
+  user_id: string;
+  user_name: string;
+  shift_date: Date;
+  start_time: string;
+  end_time: string;
+  teaching_hours: number | string;
+  notes: string | null;
+  is_closed: boolean;
+  has_travel: boolean;
+  break_minutes: number | string | null;
+}
+
+interface ShiftBonusRow {
+  id: string;
+  shift_id: string;
+  client_name: string;
+  item: string;
+  amount: number | string;
+}
+
+interface ActiveShiftRow {
+  user_id: string;
+  payload: ActiveShiftPayload | null;
+}
+
+interface ConfirmedShiftRow {
+  id: string;
+  user_id: string;
+  user_name: string;
+  shift_date: Date;
+  start_time: string;
+  end_time: string;
+}
+
+interface LessonRow {
+  id: string;
+  client_name: string;
+  phone: string;
+  lesson_type: string;
+  path_type: string;
+  lesson_number: number;
+  lesson_date: Date;
+  start_time: string;
+  end_time: string | null;
+  instructor_id: string | null;
+  voucher_number: string | null;
+  has_voucher: boolean | null;
+  is_registered: boolean | null;
+  is_paid: boolean | null;
+  is_cancelled: boolean | null;
+  is_archived: boolean | null;
+}
+
+interface RentalRow {
+  id: string;
+  rental_date: Date;
+  client_name: string;
+  item: string;
+  quantity: number;
+  duration_minutes: number;
+  overdue_minutes: number | null;
+  payment_type: string;
+  start_time: string;
+  is_returned: boolean;
+  extra_paid: number | null;
+  is_archived: boolean | null;
+}
+
+interface TaskRow {
+  id: string;
+  title: string;
+  task_type: string;
+  client_name: string | null;
+  client_phone: string | null;
+  priority: string;
+  status: string;
+  created_by: string;
+  created_at: Date;
+}
+
+interface TaskAssigneeRow {
+  task_id: string;
+  user_id: string;
+}
+
+interface LeadRow {
+  id: string;
+  name: string;
+  phone: string;
+  email: string | null;
+  source: string;
+  status: string;
+  notes: string | null;
+  created_at: Date;
+}
+
+interface AvailabilityRow {
+  id: string;
+  user_id: string;
+  user_name: string;
+  available_date: Date;
+  is_available: boolean;
+  is_all_day: boolean;
+  start_time: string | null;
+  end_time: string | null;
+  notes: string | null;
+}
+
+interface EventRow {
+  id: string;
+  name: string;
+  event_date: Date;
+  google_form_link: string | null;
+  is_archived: boolean;
+}
+
+interface EventBoatRow {
+  id: string;
+  event_id: string;
+  operator_id: string;
+  assistant_id: string | null;
+}
+
+interface EventParticipantRow {
+  id: string;
+  event_id: string;
+  name: string;
+  phone: string;
+  equipment: string;
+  status: string;
+  has_arrived: boolean;
+  rescues: number;
+  notes: string | null;
+}
+
+interface WhatsappTemplateRow {
+  id: string;
+  title: string;
+  text: string;
+}
+
+interface KnowledgeFileRow {
+  id: string;
+  name: string;
+  size: number;
+  file_type: string;
+}
+
+interface ClubRentalItemRow {
+  item: string;
+}
+
+interface ClubRentalStatusRow {
+  status: string;
+}
+
+export interface ReadStateResult {
+  state: ClubState;
+  version: number;
+}
+
+async function readStateTx(
+  client: PoolClient,
+  clubId: string
+): Promise<ReadStateResult> {
+  const [
+    clubRowRes,
+    usersRes,
+    certsRes,
+    shiftsRes,
+    bonusesRes,
+    activeShiftsRes,
+  ] = await Promise.all([
+    client.query<ClubRow>("SELECT * FROM clubs WHERE id = $1 LIMIT 1", [clubId]),
+    client.query<UserRowRaw>("SELECT * FROM users WHERE club_id = $1", [clubId]),
+    client.query<UserCertRow>(
       `
         SELECT uc.* FROM user_certifications uc
         INNER JOIN users u ON u.id = uc.user_id
@@ -238,8 +484,8 @@ async function readStateTx(client, clubId) {
       `,
       [clubId]
     ),
-    client.query("SELECT * FROM shifts WHERE club_id = $1", [clubId]),
-    client.query(
+    client.query<ShiftRow>("SELECT * FROM shifts WHERE club_id = $1", [clubId]),
+    client.query<ShiftBonusRow>(
       `
         SELECT sb.* FROM shift_bonuses sb
         INNER JOIN shifts s ON s.id = sb.shift_id
@@ -247,7 +493,10 @@ async function readStateTx(client, clubId) {
       `,
       [clubId]
     ),
-    client.query("SELECT * FROM active_shifts WHERE club_id = $1", [clubId]),
+    client.query<ActiveShiftRow>(
+      "SELECT * FROM active_shifts WHERE club_id = $1",
+      [clubId]
+    ),
   ]);
 
   const [
@@ -266,11 +515,14 @@ async function readStateTx(client, clubId) {
     itemsRes,
     statusesRes,
   ] = await Promise.all([
-    client.query("SELECT * FROM confirmed_shifts WHERE club_id = $1", [clubId]),
-    client.query("SELECT * FROM lessons WHERE club_id = $1", [clubId]),
-    client.query("SELECT * FROM rentals WHERE club_id = $1", [clubId]),
-    client.query("SELECT * FROM tasks WHERE club_id = $1", [clubId]),
-    client.query(
+    client.query<ConfirmedShiftRow>(
+      "SELECT * FROM confirmed_shifts WHERE club_id = $1",
+      [clubId]
+    ),
+    client.query<LessonRow>("SELECT * FROM lessons WHERE club_id = $1", [clubId]),
+    client.query<RentalRow>("SELECT * FROM rentals WHERE club_id = $1", [clubId]),
+    client.query<TaskRow>("SELECT * FROM tasks WHERE club_id = $1", [clubId]),
+    client.query<TaskAssigneeRow>(
       `
         SELECT ta.* FROM task_assignees ta
         INNER JOIN tasks t ON t.id = ta.task_id
@@ -278,10 +530,13 @@ async function readStateTx(client, clubId) {
       `,
       [clubId]
     ),
-    client.query("SELECT * FROM leads WHERE club_id = $1", [clubId]),
-    client.query("SELECT * FROM availability WHERE club_id = $1", [clubId]),
-    client.query("SELECT * FROM sea_events WHERE club_id = $1", [clubId]),
-    client.query(
+    client.query<LeadRow>("SELECT * FROM leads WHERE club_id = $1", [clubId]),
+    client.query<AvailabilityRow>(
+      "SELECT * FROM availability WHERE club_id = $1",
+      [clubId]
+    ),
+    client.query<EventRow>("SELECT * FROM sea_events WHERE club_id = $1", [clubId]),
+    client.query<EventBoatRow>(
       `
         SELECT eb.* FROM event_boats eb
         INNER JOIN sea_events e ON e.id = eb.event_id
@@ -289,7 +544,7 @@ async function readStateTx(client, clubId) {
       `,
       [clubId]
     ),
-    client.query(
+    client.query<EventParticipantRow>(
       `
         SELECT ep.* FROM event_participants ep
         INNER JOIN sea_events e ON e.id = ep.event_id
@@ -297,20 +552,32 @@ async function readStateTx(client, clubId) {
       `,
       [clubId]
     ),
-    client.query("SELECT * FROM whatsapp_templates WHERE club_id = $1", [clubId]),
-    client.query("SELECT * FROM knowledge_files WHERE club_id = $1", [clubId]),
-    client.query("SELECT * FROM club_rental_items WHERE club_id = $1", [clubId]),
-    client.query("SELECT * FROM club_rental_statuses WHERE club_id = $1", [clubId]),
+    client.query<WhatsappTemplateRow>(
+      "SELECT * FROM whatsapp_templates WHERE club_id = $1",
+      [clubId]
+    ),
+    client.query<KnowledgeFileRow>(
+      "SELECT * FROM knowledge_files WHERE club_id = $1",
+      [clubId]
+    ),
+    client.query<ClubRentalItemRow>(
+      "SELECT * FROM club_rental_items WHERE club_id = $1",
+      [clubId]
+    ),
+    client.query<ClubRentalStatusRow>(
+      "SELECT * FROM club_rental_statuses WHERE club_id = $1",
+      [clubId]
+    ),
   ]);
 
-  const certsByUser = new Map();
+  const certsByUser = new Map<string, string[]>();
   for (const cert of certsRes.rows) {
     const current = certsByUser.get(cert.user_id) || [];
     current.push(cert.certification);
     certsByUser.set(cert.user_id, current);
   }
 
-  const bonusesByShift = new Map();
+  const bonusesByShift = new Map<string, ShiftBonus[]>();
   for (const bonus of bonusesRes.rows) {
     const current = bonusesByShift.get(bonus.shift_id) || [];
     current.push({
@@ -322,17 +589,17 @@ async function readStateTx(client, clubId) {
     bonusesByShift.set(bonus.shift_id, current);
   }
 
-  const assignedByTask = new Map();
+  const assignedByTask = new Map<string, string[]>();
   for (const row of taskAssigneesRes.rows) {
     const current = assignedByTask.get(row.task_id) || [];
     current.push(row.user_id);
     assignedByTask.set(row.task_id, current);
   }
 
-  const boatsByEvent = new Map();
+  const boatsByEvent = new Map<string, SeaEvent["boats"]>();
   for (const row of boatsRes.rows) {
     const current = boatsByEvent.get(row.event_id) || [];
-    current.push({
+    current!.push({
       id: row.id,
       operatorId: row.operator_id,
       assistantId: row.assistant_id ?? "",
@@ -340,10 +607,10 @@ async function readStateTx(client, clubId) {
     boatsByEvent.set(row.event_id, current);
   }
 
-  const participantsByEvent = new Map();
+  const participantsByEvent = new Map<string, SeaEvent["participants"]>();
   for (const row of participantsRes.rows) {
     const current = participantsByEvent.get(row.event_id) || [];
-    current.push({
+    current!.push({
       id: row.id,
       name: row.name,
       phone: row.phone,
@@ -356,7 +623,7 @@ async function readStateTx(client, clubId) {
     participantsByEvent.set(row.event_id, current);
   }
 
-  const activeShifts = {};
+  const activeShifts: Record<string, ActiveShiftPayload> = {};
   for (const row of activeShiftsRes.rows) {
     activeShifts[row.user_id] = row.payload || {};
   }
@@ -364,21 +631,21 @@ async function readStateTx(client, clubId) {
   const club = clubRowRes.rows[0];
   const version = Number(club?.state_version ?? 0);
 
-  return {
-    state: {
-      clubId,
-      ...DEFAULT_STATE,
-      clubSettings: {
-        landline: club?.landline || "",
-        mobile: club?.mobile || "",
-        locationText: club?.location_text || "",
-        mapsUrl: club?.maps_url || "",
-        bankAccountName: club?.bank_account_name || "",
-        bankName: club?.bank_name || "",
-        bankBranch: club?.bank_branch || "",
-        bankAccountNumber: club?.bank_account_number || "",
-      },
-      users: usersRes.rows.map((u) => ({
+  const state: ClubState = {
+    clubId,
+    ...DEFAULT_STATE,
+    clubSettings: {
+      landline: club?.landline || "",
+      mobile: club?.mobile || "",
+      locationText: club?.location_text || "",
+      mapsUrl: club?.maps_url || "",
+      bankAccountName: club?.bank_account_name || "",
+      bankName: club?.bank_name || "",
+      bankBranch: club?.bank_branch || "",
+      bankAccountNumber: club?.bank_account_number || "",
+    },
+    users: usersRes.rows.map(
+      (u): User => ({
         id: u.id,
         name: u.name,
         email: u.email,
@@ -397,8 +664,10 @@ async function readStateTx(client, clubId) {
         form101Data: u.form_101_data ?? undefined,
         form101FileName: u.form_101_file_name ?? undefined,
         quickCode: u.quick_code ?? undefined,
-      })),
-      shifts: shiftsRes.rows.map((s) => ({
+      })
+    ),
+    shifts: shiftsRes.rows.map(
+      (s): Shift => ({
         id: s.id,
         userId: s.user_id,
         userName: s.user_name,
@@ -407,21 +676,25 @@ async function readStateTx(client, clubId) {
         endTime: s.end_time,
         teachingHours: Number(s.teaching_hours),
         bonuses: bonusesByShift.get(s.id) || [],
-        notes: s.notes,
+        notes: s.notes ?? "",
         isClosed: s.is_closed,
         hasTravel: s.has_travel,
         breakMinutes: Number(s.break_minutes ?? 0),
-      })),
-      activeShifts,
-      confirmedShifts: confirmedShiftsRes.rows.map((s) => ({
+      })
+    ),
+    activeShifts,
+    confirmedShifts: confirmedShiftsRes.rows.map(
+      (s): ConfirmedShift => ({
         id: s.id,
         userId: s.user_id,
         userName: s.user_name,
         date: s.shift_date.toISOString().slice(0, 10),
         startTime: s.start_time,
         endTime: s.end_time,
-      })),
-      lessons: lessonsRes.rows.map((l) => ({
+      })
+    ),
+    lessons: lessonsRes.rows.map(
+      (l): Lesson => ({
         id: l.id,
         clientName: l.client_name,
         phone: l.phone,
@@ -438,8 +711,10 @@ async function readStateTx(client, clubId) {
         isPaid: l.is_paid ?? undefined,
         isCancelled: l.is_cancelled ?? undefined,
         isArchived: l.is_archived ?? undefined,
-      })),
-      rentals: rentalsRes.rows.map((r) => ({
+      })
+    ),
+    rentals: rentalsRes.rows.map(
+      (r): Rental => ({
         id: r.id,
         date: r.rental_date.toISOString().slice(0, 10),
         clientName: r.client_name,
@@ -452,8 +727,10 @@ async function readStateTx(client, clubId) {
         isReturned: r.is_returned,
         extraPaid: r.extra_paid ?? null,
         isArchived: r.is_archived ?? undefined,
-      })),
-      tasks: tasksRes.rows.map((t) => ({
+      })
+    ),
+    tasks: tasksRes.rows.map(
+      (t): Task => ({
         id: t.id,
         title: t.title,
         type: t.task_type,
@@ -464,29 +741,31 @@ async function readStateTx(client, clubId) {
         status: t.status,
         createdBy: t.created_by,
         createdAt: t.created_at.toISOString(),
-      })),
-      leads: leadsRes.rows.map((l) => ({
-        id: l.id,
-        name: l.name,
-        phone: l.phone,
-        email: l.email ?? undefined,
-        source: l.source,
-        status: l.status,
-        notes: l.notes,
-        createdAt: l.created_at.toISOString(),
-      })),
-      availability: availabilityRes.rows.map((a) => ({
-        id: a.id,
-        userId: a.user_id,
-        userName: a.user_name,
-        date: a.available_date.toISOString().slice(0, 10),
-        isAvailable: a.is_available,
-        isAllDay: a.is_all_day,
-        startTime: a.start_time ?? undefined,
-        endTime: a.end_time ?? undefined,
-        notes: a.notes ?? undefined,
-      })),
-      events: eventsRes.rows.map((e) => ({
+      })
+    ),
+    leads: leadsRes.rows.map((l) => ({
+      id: l.id,
+      name: l.name,
+      phone: l.phone,
+      email: l.email ?? undefined,
+      source: l.source,
+      status: l.status,
+      notes: l.notes ?? "",
+      createdAt: l.created_at.toISOString(),
+    })),
+    availability: availabilityRes.rows.map((a) => ({
+      id: a.id,
+      userId: a.user_id,
+      userName: a.user_name,
+      date: a.available_date.toISOString().slice(0, 10),
+      isAvailable: a.is_available,
+      isAllDay: a.is_all_day,
+      startTime: a.start_time ?? undefined,
+      endTime: a.end_time ?? undefined,
+      notes: a.notes ?? undefined,
+    })),
+    events: eventsRes.rows.map(
+      (e): SeaEvent => ({
         id: e.id,
         name: e.name,
         date: e.event_date.toISOString().slice(0, 10),
@@ -494,36 +773,45 @@ async function readStateTx(client, clubId) {
         participants: participantsByEvent.get(e.id) || [],
         googleFormLink: e.google_form_link ?? undefined,
         isArchived: e.is_archived,
-      })),
-      whatsappTemplates: templatesRes.rows.map((t) => ({
+      })
+    ),
+    whatsappTemplates: templatesRes.rows.map(
+      (t): WhatsappTemplate => ({
         id: t.id,
         title: t.title,
         text: t.text,
-      })),
-      knowledgeFiles: filesRes.rows.map((f) => ({
+      })
+    ),
+    knowledgeFiles: filesRes.rows.map(
+      (f): KnowledgeFile => ({
         id: f.id,
         name: f.name,
         size: f.size,
         type: f.file_type,
-      })),
-      availableRentalItems: itemsRes.rows.map((i) => i.item),
-      rentalStatus: statusesRes.rows.map((s) => s.status),
-      lastSyncTime: new Date().toLocaleTimeString("he-IL", {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      }),
-      syncStatus: "synced",
-    },
-    version,
+      })
+    ),
+    availableRentalItems: itemsRes.rows.map((i) => i.item),
+    rentalStatus: statusesRes.rows.map((s) => s.status),
+    lastSyncTime: new Date().toLocaleTimeString("he-IL", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }),
+    syncStatus: "synced",
   };
+
+  return { state, version };
 }
 
-export async function writeState(clubId, state, expectedVersion) {
+export async function writeState(
+  clubId: string,
+  state: Partial<ClubState>,
+  expectedVersion?: number
+): Promise<{ version: number }> {
   return withTx(async (client) => {
     await ensureClub(client, clubId, state.clubSettings);
 
-    const currentClubRes = await client.query(
+    const currentClubRes = await client.query<{ state_version: number | string | null }>(
       "SELECT state_version FROM clubs WHERE id = $1 LIMIT 1",
       [clubId]
     );
@@ -545,13 +833,16 @@ export async function writeState(clubId, state, expectedVersion) {
       throw new StateVersionConflictError();
     }
 
-    const incomingUsers = Array.isArray(state.users) ? state.users : [];
-    const userIds = new Set();
-    const userIdsByName = new Map();
+    const incomingUsers: User[] = Array.isArray(state.users) ? state.users : [];
+    const userIds = new Set<string>();
+    const userIdsByName = new Map<string, string[]>();
     for (const [index, user] of incomingUsers.entries()) {
       const userId = normalizeOptionalString(user?.id);
       if (!userId) {
-        throw new StateValidationError(`users[${index}].id is required`, `users[${index}].id`);
+        throw new StateValidationError(
+          `users[${index}].id is required`,
+          `users[${index}].id`
+        );
       }
       userIds.add(userId);
 
@@ -562,7 +853,7 @@ export async function writeState(clubId, state, expectedVersion) {
         userIdsByName.set(userName, existingIds);
       }
     }
-    const existingUsersCountRes = await client.query(
+    const existingUsersCountRes = await client.query<{ count: number }>(
       "SELECT COUNT(*)::int AS count FROM users WHERE club_id = $1",
       [clubId]
     );
@@ -619,7 +910,8 @@ export async function writeState(clubId, state, expectedVersion) {
 
     await restorePushSubscriptions(client, existingPushSubscriptions, userIds);
 
-    for (const shift of state.shifts || []) {
+    const shifts: Shift[] = Array.isArray(state.shifts) ? state.shifts : [];
+    for (const shift of shifts) {
       await client.query(
         `
           INSERT INTO shifts (
@@ -665,7 +957,10 @@ export async function writeState(clubId, state, expectedVersion) {
       );
     }
 
-    for (const cShift of state.confirmedShifts || []) {
+    const confirmedShifts: ConfirmedShift[] = Array.isArray(state.confirmedShifts)
+      ? state.confirmedShifts
+      : [];
+    for (const cShift of confirmedShifts) {
       await client.query(
         `
           INSERT INTO confirmed_shifts (
@@ -685,7 +980,7 @@ export async function writeState(clubId, state, expectedVersion) {
       );
     }
 
-    const lessons = Array.isArray(state.lessons) ? state.lessons : [];
+    const lessons: Lesson[] = Array.isArray(state.lessons) ? state.lessons : [];
     for (const [index, lesson] of lessons.entries()) {
       const instructorId = resolveOptionalUserId(
         lesson.instructorId,
@@ -725,7 +1020,8 @@ export async function writeState(clubId, state, expectedVersion) {
       );
     }
 
-    for (const rental of state.rentals || []) {
+    const rentals: Rental[] = Array.isArray(state.rentals) ? state.rentals : [];
+    for (const rental of rentals) {
       await client.query(
         `
           INSERT INTO rentals (
@@ -752,7 +1048,7 @@ export async function writeState(clubId, state, expectedVersion) {
       );
     }
 
-    const tasks = Array.isArray(state.tasks) ? state.tasks : [];
+    const tasks: Task[] = Array.isArray(state.tasks) ? state.tasks : [];
     for (const [index, task] of tasks.entries()) {
       const createdBy = resolveTaskCreatorId(
         task.createdBy,
@@ -840,7 +1136,7 @@ export async function writeState(clubId, state, expectedVersion) {
       );
     }
 
-    const events = Array.isArray(state.events) ? state.events : [];
+    const events: SeaEvent[] = Array.isArray(state.events) ? state.events : [];
     for (const [eventIndex, event] of events.entries()) {
       await client.query(
         `
@@ -944,18 +1240,20 @@ export async function writeState(clubId, state, expectedVersion) {
   });
 }
 
-export async function readState(clubId) {
+export async function readState(clubId: string): Promise<ClubState> {
   const { state } = await readStateWithVersion(clubId);
   return state;
 }
 
-export async function readStateWithVersion(clubId) {
+export async function readStateWithVersion(
+  clubId: string
+): Promise<ReadStateResult> {
   return withTx(async (client) => readStateTx(client, clubId));
 }
 
-export async function readStateVersion(clubId) {
+export async function readStateVersion(clubId: string): Promise<number> {
   return withTx(async (client) => {
-    const res = await client.query(
+    const res = await client.query<{ state_version: number | string | null }>(
       "SELECT state_version FROM clubs WHERE id = $1 LIMIT 1",
       [clubId]
     );
