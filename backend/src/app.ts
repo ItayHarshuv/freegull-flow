@@ -676,7 +676,7 @@ app.put("/state/:clubId", requireAuth, async (req: Request, res: Response) => {
             payload
           );
 
-          if (!result.ok) {
+          if (result.ok === false) {
             console.warn("[PUSH_DELIVERY_FAILED]", {
               clubId,
               endpoint: sub.endpoint,
