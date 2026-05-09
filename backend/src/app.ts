@@ -26,6 +26,10 @@ import {
 } from "./pushRepository.js";
 import { getVapidPublicKey, isPushEnabled, sendWebPush } from "./pushService.js";
 import { computeAvailabilityNotification } from "./availabilityNotifications.js";
+import {
+  fullResyncAvailabilityToGoogle,
+  syncAvailabilityDelta,
+} from "./googleAvailabilitySync.js";
 import type { AuthContext } from "./express.js";
 import type {
   AuthSessionRow,
@@ -692,6 +696,29 @@ app.put("/state/:clubId", requireAuth, async (req: Request, res: Response) => {
         e instanceof Error ? e.message : String(e)
       );
     }
+
+    try {
+      const isConfigured =
+        !!process.env.GOOGLE_OAUTH_CLIENT_ID &&
+        !!process.env.GOOGLE_OAUTH_CLIENT_SECRET &&
+        !!process.env.GOOGLE_OAUTH_REDIRECT_URI &&
+        !!process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
+      if (!isConfigured) return;
+
+      const stats = await syncAvailabilityDelta({
+        clubId,
+        before: beforeState?.availability,
+        after: state?.availability,
+      });
+      if (stats.processed > 0) {
+        console.log("[GCAL_AVAIL_SYNC_OK]", { clubId, ...stats });
+      }
+    } catch (e) {
+      console.warn(
+        "[GCAL_AVAIL_SYNC_FAILED]",
+        e instanceof Error ? e.message : String(e)
+      );
+    }
   } catch (error) {
     if (error instanceof StateVersionConflictError) {
       const { clubId } = clubIdSchema.parse(req.params);
@@ -706,6 +733,49 @@ app.put("/state/:clubId", requireAuth, async (req: Request, res: Response) => {
     sendRouteError(res, error);
   }
 });
+
+app.post(
+  "/google-calendar/:clubId/resync-availability",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { clubId } = clubIdSchema.parse(req.params);
+      if (!enforceClubAccess(req, res, clubId)) return;
+
+      const auth = req.auth;
+      if (!auth) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const user = await readUserById(clubId, auth.userId);
+      if (!user || !isManagerRole(user.role)) {
+        return res.status(403).json({ error: "Forbidden: managers only" });
+      }
+
+      const isConfigured =
+        !!process.env.GOOGLE_OAUTH_CLIENT_ID &&
+        !!process.env.GOOGLE_OAUTH_CLIENT_SECRET &&
+        !!process.env.GOOGLE_OAUTH_REDIRECT_URI &&
+        !!process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
+      if (!isConfigured) {
+        return res.status(400).json({
+          error:
+            "Google Calendar sync is not configured (missing GOOGLE_OAUTH_* env vars).",
+        });
+      }
+
+      const state = await readState(clubId);
+      const stats = await fullResyncAvailabilityToGoogle({
+        clubId,
+        availability: state.availability,
+      });
+
+      return res.json({ ok: true, ...stats });
+    } catch (error) {
+      return sendRouteError(res, error);
+    }
+  }
+);
 
 app.get(
   "/clubs/:clubId/settings",
