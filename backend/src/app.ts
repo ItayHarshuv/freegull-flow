@@ -30,6 +30,7 @@ import {
   fullResyncAvailabilityToGoogle,
   syncAvailabilityDelta,
 } from "./googleAvailabilitySync.js";
+import { isGoogleCalendarConfigured } from "./googleCalendarService.js";
 import type { AuthContext } from "./express.js";
 import type {
   AuthSessionRow,
@@ -698,12 +699,7 @@ app.put("/state/:clubId", requireAuth, async (req: Request, res: Response) => {
     }
 
     try {
-      const isConfigured =
-        !!process.env.GOOGLE_OAUTH_CLIENT_ID &&
-        !!process.env.GOOGLE_OAUTH_CLIENT_SECRET &&
-        !!process.env.GOOGLE_OAUTH_REDIRECT_URI &&
-        !!process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
-      if (!isConfigured) return;
+      if (!isGoogleCalendarConfigured()) return;
 
       const stats = await syncAvailabilityDelta({
         clubId,
@@ -752,15 +748,10 @@ app.post(
         return res.status(403).json({ error: "Forbidden: managers only" });
       }
 
-      const isConfigured =
-        !!process.env.GOOGLE_OAUTH_CLIENT_ID &&
-        !!process.env.GOOGLE_OAUTH_CLIENT_SECRET &&
-        !!process.env.GOOGLE_OAUTH_REDIRECT_URI &&
-        !!process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
-      if (!isConfigured) {
+      if (!isGoogleCalendarConfigured()) {
         return res.status(400).json({
           error:
-            "Google Calendar sync is not configured (missing GOOGLE_OAUTH_* env vars).",
+            "Google Calendar sync is not configured. Set service-account vars or GOOGLE_OAUTH_* vars.",
         });
       }
 

@@ -16,8 +16,52 @@ export function getGoogleCalendarTimezone(): string {
   return process.env.GOOGLE_CALENDAR_TIMEZONE || "Asia/Jerusalem";
 }
 
+function hasServiceAccountConfig(): boolean {
+  return (
+    !!process.env.GOOGLE_SERVICE_ACCOUNT_CLIENT_EMAIL &&
+    !!process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
+  );
+}
+
+function hasOAuthConfig(): boolean {
+  return (
+    !!process.env.GOOGLE_OAUTH_CLIENT_ID &&
+    !!process.env.GOOGLE_OAUTH_CLIENT_SECRET &&
+    !!process.env.GOOGLE_OAUTH_REDIRECT_URI &&
+    !!process.env.GOOGLE_OAUTH_REFRESH_TOKEN
+  );
+}
+
+export function isGoogleCalendarConfigured(): boolean {
+  return hasServiceAccountConfig() || hasOAuthConfig();
+}
+
+function getGoogleCalendarAuthMode(): "service_account" | "oauth" {
+  if (hasServiceAccountConfig()) return "service_account";
+  if (hasOAuthConfig()) return "oauth";
+  throw new Error(
+    "Google Calendar sync is not configured. Set GOOGLE_SERVICE_ACCOUNT_CLIENT_EMAIL and GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY, or the GOOGLE_OAUTH_* vars."
+  );
+}
+
 export function getGoogleCalendarClient(): calendar_v3.Calendar {
   if (calendarClient) return calendarClient;
+
+  const authMode = getGoogleCalendarAuthMode();
+
+  if (authMode === "service_account") {
+    const clientEmail = requireEnv("GOOGLE_SERVICE_ACCOUNT_CLIENT_EMAIL");
+    const privateKey = requireEnv("GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY").replace(/\\n/g, "\n");
+
+    const jwt = new google.auth.JWT({
+      email: clientEmail,
+      key: privateKey,
+      scopes: ["https://www.googleapis.com/auth/calendar"],
+    });
+
+    calendarClient = google.calendar({ version: "v3", auth: jwt });
+    return calendarClient;
+  }
 
   const clientId = requireEnv("GOOGLE_OAUTH_CLIENT_ID");
   const clientSecret = requireEnv("GOOGLE_OAUTH_CLIENT_SECRET");
@@ -43,6 +87,7 @@ export async function resolveAvailabilityCalendarId(): Promise<string> {
   const calendarName =
     (process.env.GOOGLE_AVAILABILITY_CALENDAR_NAME || "").trim() ||
     "זמינות עובדים";
+  const authMode = getGoogleCalendarAuthMode();
 
   const calendar = getGoogleCalendarClient();
 
@@ -63,6 +108,12 @@ export async function resolveAvailabilityCalendarId(): Promise<string> {
     }
     pageToken = res.data.nextPageToken || undefined;
     if (!pageToken) break;
+  }
+
+  if (authMode === "service_account") {
+    throw new Error(
+      `Shared availability calendar "${calendarName}" was not found for the configured service account. Share the calendar with the service account email, or set GOOGLE_AVAILABILITY_CALENDAR_ID explicitly.`
+    );
   }
 
   const created = await calendar.calendars.insert({
