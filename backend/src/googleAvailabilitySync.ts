@@ -81,22 +81,22 @@ function formatAvailabilityLine(entry: AvailabilityEntry): string {
   }
 
   if (!startTime && endTime) {
-    return `${name} - עד ${endTime}`;
+    return `${name}: עד ${endTime}`;
   }
 
   if (startTime && !endTime) {
-    return `${name} - מ-${startTime}`;
+    return `${name}: מ${startTime}`;
   }
 
   if (startTime && endTime && isAtOrBefore(startTime, "08:00")) {
-    return `${name} - עד ${endTime}`;
+    return `${name}: עד ${endTime}`;
   }
 
   if (startTime && endTime && isAtOrAfter(endTime, "20:00")) {
-    return `${name} - מ-${startTime}`;
+    return `${name}: מ${startTime}`;
   }
 
-  return `${name} - ${startTime}-${endTime}`;
+  return `${name}: ${startTime}-${endTime}`;
 }
 
 function buildEventRequestBody({
