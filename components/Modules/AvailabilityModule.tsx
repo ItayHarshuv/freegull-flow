@@ -35,7 +35,7 @@ const AvailabilityModule: React.FC = () => {
         isAvailable: false,
         isAllDay: true, 
         startTime: '08:00',
-        endTime: '17:00',
+        endTime: '20:00',
         notes: ''
       };
     });

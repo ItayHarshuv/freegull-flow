@@ -1,9 +1,9 @@
 import type { AvailabilityEntry } from "./types.js";
-import { getGoogleCalendarClient, getGoogleCalendarTimezone, resolveAvailabilityCalendarId } from "./googleCalendarService.js";
+import { getGoogleCalendarClient, resolveAvailabilityCalendarId } from "./googleCalendarService.js";
 import {
   deleteAvailabilityEventMapping,
-  getAvailabilityEventMapping,
   listAvailabilityEventMappingsByClub,
+  setAvailabilityEventMappingError,
   upsertAvailabilityEventMapping,
 } from "./googleAvailabilitySyncRepository.js";
 
@@ -19,15 +19,6 @@ function normalizeTime(value: unknown): string {
   return `${hh.padStart(2, "0")}:${mm.padStart(2, "0")}`;
 }
 
-function addMinutes(timeHHMM: string, minutes: number): string {
-  const [hh, mm] = timeHHMM.split(":").map((x) => Number(x));
-  const total = hh * 60 + mm + minutes;
-  const clamped = ((total % (24 * 60)) + (24 * 60)) % (24 * 60);
-  const outH = Math.floor(clamped / 60);
-  const outM = clamped % 60;
-  return `${String(outH).padStart(2, "0")}:${String(outM).padStart(2, "0")}`;
-}
-
 function isPastDate(dateStr: string): boolean {
   const today = new Date();
   const y = today.getFullYear();
@@ -35,6 +26,18 @@ function isPastDate(dateStr: string): boolean {
   const d = String(today.getDate()).padStart(2, "0");
   const todayStr = `${y}-${m}-${d}`;
   return dateStr < todayStr;
+}
+
+function compareTimes(left: string, right: string): number {
+  return normalizeTime(left).localeCompare(normalizeTime(right));
+}
+
+function isAtOrBefore(timeHHMM: string, thresholdHHMM: string): boolean {
+  return compareTimes(timeHHMM, thresholdHHMM) <= 0;
+}
+
+function isAtOrAfter(timeHHMM: string, thresholdHHMM: string): boolean {
+  return compareTimes(timeHHMM, thresholdHHMM) >= 0;
 }
 
 function availabilityChanged(before: AvailabilityEntry | undefined, after: AvailabilityEntry | undefined): boolean {
@@ -49,56 +52,96 @@ function availabilityChanged(before: AvailabilityEntry | undefined, after: Avail
   );
 }
 
-function buildEventRequestBody({
-  clubId,
-  availabilityId,
-  entry,
-}: {
-  clubId: string;
-  availabilityId: string;
-  entry: AvailabilityEntry;
-}) {
-  const timeZone = getGoogleCalendarTimezone();
-  const date = String(entry.date || "").slice(0, 10);
-  const isAllDay = Boolean(entry.isAllDay);
+function groupEntriesByDate(entries: AvailabilityEntry[]): Map<string, AvailabilityEntry[]> {
+  const byDate = new Map<string, AvailabilityEntry[]>();
+  for (const entry of entries) {
+    const date = String(entry.date || "").slice(0, 10);
+    if (!date) continue;
+    const existing = byDate.get(date);
+    if (existing) {
+      existing.push(entry);
+      continue;
+    }
+    byDate.set(date, [entry]);
+  }
+  return byDate;
+}
+
+function formatAvailabilityLine(entry: AvailabilityEntry): string {
+  const name = String(entry.userName || "עובד").trim() || "עובד";
   const startTime = normalizeTime(entry.startTime);
   const endTime = normalizeTime(entry.endTime);
 
+  if (entry.isAllDay || (!startTime && !endTime)) {
+    return name;
+  }
+
+  if (startTime && endTime && isAtOrBefore(startTime, "08:00") && isAtOrAfter(endTime, "20:00")) {
+    return name;
+  }
+
+  if (!startTime && endTime) {
+    return `${name} - עד ${endTime}`;
+  }
+
+  if (startTime && !endTime) {
+    return `${name} - מ-${startTime}`;
+  }
+
+  if (startTime && endTime && isAtOrBefore(startTime, "08:00")) {
+    return `${name} - עד ${endTime}`;
+  }
+
+  if (startTime && endTime && isAtOrAfter(endTime, "20:00")) {
+    return `${name} - מ-${startTime}`;
+  }
+
+  return `${name} - ${startTime}-${endTime}`;
+}
+
+function buildEventRequestBody({
+  clubId,
+  date,
+  entries,
+}: {
+  clubId: string;
+  date: string;
+  entries: AvailabilityEntry[];
+}) {
+  const sortedEntries = [...entries].sort((left, right) => {
+    if (Boolean(left.isAllDay) !== Boolean(right.isAllDay)) {
+      return left.isAllDay ? -1 : 1;
+    }
+
+    const leftStart = normalizeTime(left.startTime) || "00:00";
+    const rightStart = normalizeTime(right.startTime) || "00:00";
+    const byStart = compareTimes(leftStart, rightStart);
+    if (byStart !== 0) return byStart;
+
+    return String(left.userName || "").localeCompare(String(right.userName || ""), "he");
+  });
+
+  const description = sortedEntries.map(formatAvailabilityLine).join("\n");
+
   const base = {
-    summary: `${entry.userName || "עובד"}`,
-    description: [
-      entry.notes ? `הערות: ${entry.notes}` : "",
-      `clubId=${clubId}`,
-      `availabilityId=${availabilityId}`,
-    ]
-      .filter(Boolean)
-      .join("\n"),
+    summary: "זמינות",
+    description,
     extendedProperties: {
       private: {
         clubId,
-        availabilityId,
+        availabilityDate: date,
       },
     },
   };
 
-  if (isAllDay || (!startTime && !endTime)) {
-    const endDate = new Date(`${date}T00:00:00Z`);
-    endDate.setUTCDate(endDate.getUTCDate() + 1);
-    const endDateStr = endDate.toISOString().slice(0, 10);
-    return {
-      ...base,
-      start: { date },
-      end: { date: endDateStr },
-    };
-  }
-
-  const effectiveStart = startTime || "08:00";
-  const effectiveEnd = endTime || addMinutes(effectiveStart, 60);
+  const endDate = new Date(`${date}T00:00:00Z`);
+  endDate.setUTCDate(endDate.getUTCDate() + 1);
+  const endDateStr = endDate.toISOString().slice(0, 10);
 
   return {
     ...base,
-    start: { dateTime: `${date}T${effectiveStart}:00`, timeZone },
-    end: { dateTime: `${date}T${effectiveEnd}:00`, timeZone },
+    start: { date },
+    end: { date: endDateStr },
   };
 }
 
@@ -119,37 +162,30 @@ async function safeDeleteEvent({
   }
 }
 
-async function upsertEventForAvailability({
+async function upsertEventForDate({
   clubId,
   calendarId,
-  availabilityId,
-  entry,
+  date,
+  entries,
+  existingGoogleEventId,
 }: {
   clubId: string;
   calendarId: string;
-  availabilityId: string;
-  entry: AvailabilityEntry;
-}) {
+  date: string;
+  entries: AvailabilityEntry[];
+  existingGoogleEventId: string | null;
+}): Promise<string> {
   const calendar = getGoogleCalendarClient();
-  const requestBody = buildEventRequestBody({ clubId, availabilityId, entry });
+  const requestBody = buildEventRequestBody({ clubId, date, entries });
 
-  const existing = await getAvailabilityEventMapping({ clubId, availabilityId });
-  if (existing?.googleEventId) {
+  if (existingGoogleEventId) {
     try {
       const updated = await calendar.events.update({
         calendarId,
-        eventId: existing.googleEventId,
+        eventId: existingGoogleEventId,
         requestBody,
       });
-      const id = updated.data.id || existing.googleEventId;
-      await upsertAvailabilityEventMapping({
-        clubId,
-        availabilityId,
-        calendarId,
-        googleEventId: id,
-        lastError: null,
-      });
-      return;
+      return updated.data.id || existingGoogleEventId;
     } catch (e: any) {
       const status = Number(e?.code || e?.response?.status || 0);
       if (status !== 404) throw e;
@@ -165,13 +201,99 @@ async function upsertEventForAvailability({
   if (!id) {
     throw new Error("Google Calendar insert succeeded but returned no event id");
   }
-  await upsertAvailabilityEventMapping({
-    clubId,
-    availabilityId,
-    calendarId,
-    googleEventId: id,
-    lastError: null,
-  });
+  return id;
+}
+
+async function deleteEventsById({
+  calendarId,
+  googleEventIds,
+}: {
+  calendarId: string;
+  googleEventIds: Iterable<string>;
+}): Promise<number> {
+  let deleted = 0;
+  const uniqueIds = [...new Set([...googleEventIds].filter(Boolean))];
+
+  for (const googleEventId of uniqueIds) {
+    await safeDeleteEvent({ calendarId, googleEventId });
+    deleted += 1;
+  }
+
+  return deleted;
+}
+
+async function syncEventForDate({
+  clubId,
+  calendarId,
+  date,
+  entriesForDate,
+  mappedAvailabilityIds,
+  existingGoogleEventIds,
+}: {
+  clubId: string;
+  calendarId: string;
+  date: string;
+  entriesForDate: AvailabilityEntry[];
+  mappedAvailabilityIds: string[];
+  existingGoogleEventIds: string[];
+}): Promise<{ createdOrUpdated: number; deleted: number }> {
+  const currentAvailabilityIds = new Set(entriesForDate.map((entry) => String(entry.id)));
+  const uniqueExistingGoogleEventIds = [...new Set(existingGoogleEventIds.filter(Boolean))];
+
+  if (entriesForDate.length === 0) {
+    const deleted = await deleteEventsById({
+      calendarId,
+      googleEventIds: uniqueExistingGoogleEventIds,
+    });
+
+    for (const availabilityId of new Set(mappedAvailabilityIds)) {
+      await deleteAvailabilityEventMapping({ clubId, availabilityId });
+    }
+
+    return { createdOrUpdated: 0, deleted };
+  }
+
+  try {
+    const googleEventId = await upsertEventForDate({
+      clubId,
+      calendarId,
+      date,
+      entries: entriesForDate,
+      existingGoogleEventId: uniqueExistingGoogleEventIds[0] || null,
+    });
+
+    for (const entry of entriesForDate) {
+      await upsertAvailabilityEventMapping({
+        clubId,
+        availabilityId: String(entry.id),
+        calendarId,
+        googleEventId,
+        lastError: null,
+      });
+    }
+
+    for (const availabilityId of new Set(mappedAvailabilityIds)) {
+      if (currentAvailabilityIds.has(availabilityId)) continue;
+      await deleteAvailabilityEventMapping({ clubId, availabilityId });
+    }
+
+    const deleted = await deleteEventsById({
+      calendarId,
+      googleEventIds: uniqueExistingGoogleEventIds.filter((id) => id !== googleEventId),
+    });
+
+    return { createdOrUpdated: 1, deleted };
+  } catch (e: any) {
+    const message = e instanceof Error ? e.message : String(e);
+    for (const entry of entriesForDate) {
+      await setAvailabilityEventMappingError({
+        clubId,
+        availabilityId: String(entry.id),
+        error: message,
+      });
+    }
+    throw e;
+  }
 }
 
 export async function syncAvailabilityDelta({
@@ -187,33 +309,28 @@ export async function syncAvailabilityDelta({
   const next = Array.isArray(after) ? after : [];
   const prevByKey = new Map(prev.map((a) => [keyFor(a), a]));
   const nextByKey = new Map(next.map((a) => [keyFor(a), a]));
+  const prevByDate = groupEntriesByDate(prev.filter((entry) => entry && entry.id));
+  const nextByDate = groupEntriesByDate(next.filter((entry) => entry && entry.id));
   const keys = new Set([...prevByKey.keys(), ...nextByKey.keys()]);
 
   const calendarId = await resolveAvailabilityCalendarId();
+  const mappings = await listAvailabilityEventMappingsByClub({ clubId });
+  const mappingsByAvailabilityId = new Map(mappings.map((mapping) => [mapping.availabilityId, mapping]));
 
   let processed = 0;
   let createdOrUpdated = 0;
   let deleted = 0;
   let skippedPast = 0;
+  const affectedDates = new Set<string>();
 
   for (const key of keys) {
     const beforeEntry = prevByKey.get(key);
     const afterEntry = nextByKey.get(key);
-    const availabilityId = String(afterEntry?.id || beforeEntry?.id || "");
-    if (!availabilityId) continue;
 
     if (!afterEntry) {
-      // removed
-      const mapping = await getAvailabilityEventMapping({ clubId, availabilityId });
-      if (mapping?.googleEventId && mapping?.calendarId) {
-        await safeDeleteEvent({
-          calendarId: mapping.calendarId || calendarId,
-          googleEventId: mapping.googleEventId,
-        });
-        deleted += 1;
-      }
-      await deleteAvailabilityEventMapping({ clubId, availabilityId });
       processed += 1;
+      const beforeDate = String(beforeEntry?.date || "").slice(0, 10);
+      if (beforeDate) affectedDates.add(beforeDate);
       continue;
     }
 
@@ -226,39 +343,39 @@ export async function syncAvailabilityDelta({
     }
 
     processed += 1;
+    const beforeDate = String(beforeEntry?.date || "").slice(0, 10);
+    const afterDate = String(afterEntry?.date || "").slice(0, 10);
+    if (beforeDate) affectedDates.add(beforeDate);
+    if (afterDate) affectedDates.add(afterDate);
+  }
 
-    if (!afterEntry.isAvailable) {
-      const mapping = await getAvailabilityEventMapping({ clubId, availabilityId });
-      if (mapping?.googleEventId && mapping?.calendarId) {
-        await safeDeleteEvent({
-          calendarId: mapping.calendarId || calendarId,
-          googleEventId: mapping.googleEventId,
-        });
-        deleted += 1;
-      }
-      await deleteAvailabilityEventMapping({ clubId, availabilityId });
-      continue;
-    }
+  for (const date of affectedDates) {
+    if (!date || isPastDate(date)) continue;
 
-    try {
-      await upsertEventForAvailability({
-        clubId,
-        calendarId,
-        availabilityId,
-        entry: afterEntry,
-      });
-      createdOrUpdated += 1;
-    } catch (e: any) {
-      const message = e instanceof Error ? e.message : String(e);
-      await upsertAvailabilityEventMapping({
-        clubId,
-        availabilityId,
-        calendarId,
-        googleEventId: (await getAvailabilityEventMapping({ clubId, availabilityId }))?.googleEventId || "",
-        lastError: message,
-      });
-      throw e;
-    }
+    const currentEntries = (nextByDate.get(date) || []).filter((entry) => entry.isAvailable);
+    const availabilityIdsForDate = new Set([
+      ...(prevByDate.get(date) || []).map((entry) => String(entry.id)),
+      ...(nextByDate.get(date) || []).map((entry) => String(entry.id)),
+    ]);
+
+    const mappedAvailabilityIds = [...availabilityIdsForDate].filter((availabilityId) =>
+      mappingsByAvailabilityId.has(availabilityId)
+    );
+
+    const existingGoogleEventIds = mappedAvailabilityIds
+      .map((availabilityId) => mappingsByAvailabilityId.get(availabilityId)?.googleEventId || "")
+      .filter(Boolean);
+
+    const result = await syncEventForDate({
+      clubId,
+      calendarId,
+      date,
+      entriesForDate: currentEntries,
+      mappedAvailabilityIds,
+      existingGoogleEventIds,
+    });
+    createdOrUpdated += result.createdOrUpdated;
+    deleted += result.deleted;
   }
 
   return { processed, createdOrUpdated, deleted, skippedPast };
@@ -273,43 +390,75 @@ export async function fullResyncAvailabilityToGoogle({
 }): Promise<{ upserted: number; deleted: number; skippedPast: number }> {
   const entries = (Array.isArray(availability) ? availability : []).filter((a) => a && a.id);
   const calendarId = await resolveAvailabilityCalendarId();
+  const entriesByDate = groupEntriesByDate(entries);
+  const availableEntriesByDate = groupEntriesByDate(entries.filter((entry) => entry.isAvailable));
 
   const byId = new Map(entries.map((e) => [String(e.id), e]));
   const mappings = await listAvailabilityEventMappingsByClub({ clubId });
+  const mappingsByAvailabilityId = new Map(mappings.map((mapping) => [mapping.availabilityId, mapping]));
 
   let upserted = 0;
   let deleted = 0;
   let skippedPast = 0;
 
-  // delete mappings that no longer should exist (missing or unavailable)
-  for (const mapping of mappings) {
-    const entry = byId.get(mapping.availabilityId);
-    if (!entry || !entry.isAvailable) {
-      if (mapping.googleEventId && mapping.calendarId) {
-        await safeDeleteEvent({
-          calendarId: mapping.calendarId || calendarId,
-          googleEventId: mapping.googleEventId,
-        });
-        deleted += 1;
-      }
-      await deleteAvailabilityEventMapping({ clubId, availabilityId: mapping.availabilityId });
+  const preservedGoogleEventIds = new Set<string>();
+  const syncedAvailabilityIds = new Set<string>();
+
+  for (const date of entriesByDate.keys()) {
+    const dateEntries = entriesByDate.get(date) || [];
+    if (date && isPastDate(date)) {
+      skippedPast += dateEntries.filter((entry) => entry.isAvailable).length;
+      continue;
+    }
+
+    const availableEntries = availableEntriesByDate.get(date) || [];
+    const mappedAvailabilityIds = dateEntries
+      .map((entry) => String(entry.id))
+      .filter((availabilityId) => mappingsByAvailabilityId.has(availabilityId));
+
+    const existingGoogleEventIds = mappedAvailabilityIds
+      .map((availabilityId) => mappingsByAvailabilityId.get(availabilityId)?.googleEventId || "")
+      .filter(Boolean);
+
+    const result = await syncEventForDate({
+      clubId,
+      calendarId,
+      date,
+      entriesForDate: availableEntries,
+      mappedAvailabilityIds,
+      existingGoogleEventIds,
+    });
+    upserted += result.createdOrUpdated;
+    deleted += result.deleted;
+
+    for (const entry of availableEntries) {
+      syncedAvailabilityIds.add(String(entry.id));
+    }
+    for (const googleEventId of existingGoogleEventIds) {
+      if (availableEntries.length > 0) preservedGoogleEventIds.add(googleEventId);
     }
   }
 
-  for (const entry of entries) {
-    if (!entry.isAvailable) continue;
-    const dateStr = String(entry.date || "").slice(0, 10);
-    if (dateStr && isPastDate(dateStr)) {
-      skippedPast += 1;
-      continue;
+  const deletedGoogleEventIds = new Set<string>();
+
+  for (const mapping of mappings) {
+    if (syncedAvailabilityIds.has(mapping.availabilityId)) continue;
+
+    const entry = byId.get(mapping.availabilityId);
+    const googleEventId = mapping.googleEventId || "";
+
+    if (googleEventId && !preservedGoogleEventIds.has(googleEventId) && !deletedGoogleEventIds.has(googleEventId)) {
+      await safeDeleteEvent({
+        calendarId: mapping.calendarId || calendarId,
+        googleEventId,
+      });
+      deletedGoogleEventIds.add(googleEventId);
+      deleted += 1;
     }
-    await upsertEventForAvailability({
-      clubId,
-      calendarId,
-      availabilityId: String(entry.id),
-      entry,
-    });
-    upserted += 1;
+
+    if (!entry || !entry.isAvailable) {
+      await deleteAvailabilityEventMapping({ clubId, availabilityId: mapping.availabilityId });
+    }
   }
 
   return { upserted, deleted, skippedPast };
