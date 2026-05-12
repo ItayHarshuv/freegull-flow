@@ -142,6 +142,8 @@ type AuthContext = {
 
 type LegacyDbModule = typeof import('../../../backend/src/db.js');
 type LegacyStateRepositoryModule = typeof import('../../../backend/src/stateRepository.js');
+type LegacyGoogleAvailabilitySyncModule = typeof import('../../../backend/src/googleAvailabilitySync.js');
+type LegacyGoogleCalendarServiceModule = typeof import('../../../backend/src/googleCalendarService.js');
 
 const app = new Hono<{ Variables: { auth: AuthContext } }>();
 
@@ -193,6 +195,8 @@ app.get('/health', (c) => c.json({ ok: true }));
 
 let legacyDbModulePromise: Promise<LegacyDbModule> | null = null;
 let legacyStateRepositoryPromise: Promise<LegacyStateRepositoryModule> | null = null;
+let legacyGoogleAvailabilitySyncModulePromise: Promise<LegacyGoogleAvailabilitySyncModule> | null = null;
+let legacyGoogleCalendarServiceModulePromise: Promise<LegacyGoogleCalendarServiceModule> | null = null;
 
 function getLegacyDbModule() {
   if (!legacyDbModulePromise) {
@@ -208,6 +212,22 @@ function getLegacyStateRepositoryModule() {
   }
 
   return legacyStateRepositoryPromise;
+}
+
+function getLegacyGoogleAvailabilitySyncModule() {
+  if (!legacyGoogleAvailabilitySyncModulePromise) {
+    legacyGoogleAvailabilitySyncModulePromise = import('../../../backend/src/googleAvailabilitySync.js');
+  }
+
+  return legacyGoogleAvailabilitySyncModulePromise;
+}
+
+function getLegacyGoogleCalendarServiceModule() {
+  if (!legacyGoogleCalendarServiceModulePromise) {
+    legacyGoogleCalendarServiceModulePromise = import('../../../backend/src/googleCalendarService.js');
+  }
+
+  return legacyGoogleCalendarServiceModulePromise;
 }
 
 async function getPool() {
@@ -589,6 +609,25 @@ app.put('/state/:clubId', requireAuth, async (c) => {
       console.warn('[PUSH_NOTIFY_FAILED]', error instanceof Error ? error.message : error);
     }
 
+    try {
+      const [{ isGoogleCalendarConfigured }, { syncAvailabilityDelta }] = await Promise.all([
+        getLegacyGoogleCalendarServiceModule(),
+        getLegacyGoogleAvailabilitySyncModule(),
+      ]);
+      if (isGoogleCalendarConfigured()) {
+        const stats = await syncAvailabilityDelta({
+          clubId,
+          before: beforeState?.state?.availability,
+          after: state?.availability,
+        });
+        if (stats.processed > 0) {
+          console.log('[GCAL_AVAIL_SYNC_OK]', { clubId, ...stats });
+        }
+      }
+    } catch (error) {
+      console.warn('[GCAL_AVAIL_SYNC_FAILED]', error instanceof Error ? error.message : error);
+    }
+
     return c.json({ ...state, serverVersion: version });
   } catch (error) {
     if (error instanceof StateVersionConflictError) {
@@ -605,6 +644,39 @@ app.put('/state/:clubId', requireAuth, async (c) => {
 
     throw error;
   }
+});
+
+app.post('/google-calendar/:clubId/resync-availability', requireAuth, async (c) => {
+  const { clubId } = clubIdSchema.parse(c.req.param());
+  const denied = enforceClubAccess(c, clubId);
+  if (denied) return denied;
+
+  const auth = c.get('auth') as AuthContext;
+  const user = await readUserById(clubId, auth.userId);
+  if (!user || !isManagerRole(user.role)) {
+    return c.json({ error: 'Forbidden: managers only' }, 403);
+  }
+
+  const { isGoogleCalendarConfigured } = await getLegacyGoogleCalendarServiceModule();
+  if (!isGoogleCalendarConfigured()) {
+    return c.json(
+      {
+        error:
+          'Google Calendar sync is not configured. Set service-account vars or GOOGLE_OAUTH_* vars.',
+      },
+      400
+    );
+  }
+
+  const { readState } = await getLegacyStateRepositoryModule();
+  const state = await readState(clubId);
+  const { fullResyncAvailabilityToGoogle } = await getLegacyGoogleAvailabilitySyncModule();
+  const stats = await fullResyncAvailabilityToGoogle({
+    clubId,
+    availability: state.availability,
+  });
+
+  return c.json({ ok: true, ...stats });
 });
 
 app.get('/api/v1/clubs/:clubId/dashboard', (c) => {
