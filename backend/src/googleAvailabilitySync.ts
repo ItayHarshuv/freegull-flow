@@ -1,5 +1,9 @@
 import type { AvailabilityEntry } from "./types.js";
-import { getGoogleCalendarClient, resolveAvailabilityCalendarId } from "./googleCalendarService.js";
+import {
+  getGoogleCalendarClient,
+  getGoogleCalendarTimezone,
+  resolveAvailabilityCalendarId,
+} from "./googleCalendarService.js";
 import {
   deleteAvailabilityEventMapping,
   listAvailabilityEventMappingsByClub,
@@ -134,14 +138,18 @@ function buildEventRequestBody({
     },
   };
 
-  const endDate = new Date(`${date}T00:00:00Z`);
-  endDate.setUTCDate(endDate.getUTCDate() + 1);
-  const endDateStr = endDate.toISOString().slice(0, 10);
+  const timeZone = getGoogleCalendarTimezone();
 
   return {
     ...base,
-    start: { date },
-    end: { date: endDateStr },
+    start: {
+      dateTime: `${date}T04:00:00`,
+      timeZone,
+    },
+    end: {
+      dateTime: `${date}T05:00:00`,
+      timeZone,
+    },
   };
 }
 
