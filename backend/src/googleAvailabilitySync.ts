@@ -103,6 +103,34 @@ function formatAvailabilityLine(entry: AvailabilityEntry): string {
   return `${name}: ${startTime}-${endTime}`;
 }
 
+function formatAvailabilityTitleRange(entry: AvailabilityEntry): string {
+  const startTime = normalizeTime(entry.startTime);
+  const endTime = normalizeTime(entry.endTime);
+
+  if (entry.isAllDay || (!startTime && !endTime)) {
+    return "כל היום";
+  }
+
+  if (!startTime && endTime) {
+    return `עד ${endTime}`;
+  }
+
+  if (startTime && !endTime) {
+    return `מ${startTime}`;
+  }
+
+  return `${startTime}-${endTime}`;
+}
+
+function buildAvailabilitySummary(entries: AvailabilityEntry[]): string {
+  const parts = entries.map((entry) => {
+    const name = String(entry.userName || "עובד").trim() || "עובד";
+    return `${name} ${formatAvailabilityTitleRange(entry)}`;
+  });
+
+  return `זמינות: ${parts.join(", ")}`;
+}
+
 function buildEventRequestBody({
   clubId,
   date,
@@ -126,9 +154,10 @@ function buildEventRequestBody({
   });
 
   const description = sortedEntries.map(formatAvailabilityLine).join("\n");
+  const summary = buildAvailabilitySummary(sortedEntries);
 
   const base = {
-    summary: "זמינות",
+    summary,
     description,
     extendedProperties: {
       private: {
