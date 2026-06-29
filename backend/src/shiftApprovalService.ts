@@ -15,6 +15,7 @@ import {
 } from "./shiftApprovalRepository.js";
 import {
   isStrictManagerRole,
+  requiresAvailabilityChangeApproval,
   requiresShiftChangeApproval,
 } from "./shiftApprovalRules.js";
 import {
@@ -308,7 +309,7 @@ export async function submitAvailabilityChangeRequest(input: {
 
   const needsApproval =
     !isStrictManagerRole(input.userRole) &&
-    requiresShiftChangeApproval(normalizedExisting.date);
+    requiresAvailabilityChangeApproval(normalizedExisting, normalizedProposed);
 
   if (await hasPendingRequestForShift(input.clubId, normalizedExisting.id)) {
     throw new Error("A pending request already exists for this availability");
@@ -521,7 +522,13 @@ export function sanitizeAvailabilityWrite(input: {
     if (beforeEntry.userId !== input.userId) continue;
     const afterEntry = afterByKey.get(key);
     if (!afterEntry) {
-      if (requiresShiftChangeApproval(beforeEntry.date)) {
+      if (requiresAvailabilityChangeApproval(beforeEntry, {
+        ...beforeEntry,
+        isAvailable: false,
+        isAllDay: beforeEntry.isAllDay,
+        startTime: beforeEntry.startTime,
+        endTime: beforeEntry.endTime,
+      })) {
         throw new Error(
           "Availability changes require manager approval after Saturday 18:00"
         );
@@ -533,7 +540,10 @@ export function sanitizeAvailabilityWrite(input: {
         normalizeAvailabilityEntry(beforeEntry, key),
         normalizeAvailabilityEntry(afterEntry, key)
       ) &&
-      requiresShiftChangeApproval(beforeEntry.date)
+      requiresAvailabilityChangeApproval(
+        normalizeAvailabilityEntry(beforeEntry, key),
+        normalizeAvailabilityEntry(afterEntry, key)
+      )
     ) {
       throw new Error(
         "Availability changes require manager approval after Saturday 18:00"

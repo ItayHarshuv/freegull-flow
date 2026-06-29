@@ -9,7 +9,10 @@ import {
   submitAvailabilityChangeRequest,
   submitShiftChangeRequest,
 } from '../../utils/shiftApprovalApi';
-import { requiresShiftChangeApproval } from '../../utils/shiftApprovalRules';
+import {
+  requiresAvailabilityChangeApproval,
+  requiresShiftChangeApproval,
+} from '../../utils/shiftApprovalRules';
 import { Save, Calendar, Check, Clock, Sun, MessageSquare, Briefcase, Bell, X, Edit3, UserMinus } from 'lucide-react';
 
 const AvailabilityModule: React.FC = () => {
@@ -36,13 +39,16 @@ const AvailabilityModule: React.FC = () => {
     return `${entry.startTime} - ${entry.endTime}`;
   };
 
-  const isSameAvailability = (left?: Availability, right?: Availability) =>
-    Boolean(left && right) &&
-    left.isAvailable === right.isAvailable &&
-    left.isAllDay === right.isAllDay &&
-    (left.startTime || '') === (right.startTime || '') &&
-    (left.endTime || '') === (right.endTime || '') &&
-    (left.notes || '') === (right.notes || '');
+  const isSameAvailability = (left?: Availability, right?: Availability) => {
+    if (!left || !right) return false;
+    return (
+      left.isAvailable === right.isAvailable &&
+      left.isAllDay === right.isAllDay &&
+      (left.startTime || '') === (right.startTime || '') &&
+      (left.endTime || '') === (right.endTime || '') &&
+      (left.notes || '') === (right.notes || '')
+    );
+  };
 
   const dates = Array.from({ length: 14 }, (_, i) => {
     const d = new Date();
@@ -184,7 +190,7 @@ const AvailabilityModule: React.FC = () => {
       if (existing && isSameAvailability(existing, entry)) {
         return;
       }
-      if (existing && requiresShiftChangeApproval(entry.date)) {
+      if (existing && requiresAvailabilityChangeApproval(existing, entry)) {
         approvalRequests.push(entry);
         return;
       }
@@ -289,12 +295,6 @@ const AvailabilityModule: React.FC = () => {
     if (req.status === 'pending') {
       return <span className="text-[10px] font-black uppercase px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100">ממתין לאישור</span>;
     }
-    if (req.status === 'approved') {
-      return <span className="text-[10px] font-black uppercase px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">אושר</span>;
-    }
-    if (req.status === 'rejected') {
-      return <span className="text-[10px] font-black uppercase px-3 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-100">נדחה</span>;
-    }
     return null;
   };
 
@@ -303,12 +303,6 @@ const AvailabilityModule: React.FC = () => {
     if (!req) return null;
     if (req.status === 'pending') {
       return <span className="text-[10px] font-black uppercase px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100">ממתין לאישור</span>;
-    }
-    if (req.status === 'approved') {
-      return <span className="text-[10px] font-black uppercase px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">השינוי אושר</span>;
-    }
-    if (req.status === 'rejected') {
-      return <span className="text-[10px] font-black uppercase px-3 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-100">השינוי נדחה</span>;
     }
     return null;
   };
@@ -339,7 +333,7 @@ const AvailabilityModule: React.FC = () => {
             <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight leading-none">זמינות ומשמרות</h2>
             <p className="text-slate-600 mt-3 font-bold text-lg italic">
               {activeTab === 'availability'
-                ? 'סמן ימים בהם אתה פנוי לעבודה. אחרי שבת ב-18:00, שינוי לזמינות שכבר נשלחה לשבוע הבא עובר לאישור מנהל.'
+                ? 'סמן ימים בהם אתה פנוי לעבודה. אחרי שבת ב-18:00, שינוי לזמינות שכבר נשלחה לשבוע הבא עובר לאישור מנהל, אבל הוספת זמינות עדיין נשמרת מיד.'
                 : 'המשמרות המשובצות שלך. שינויים לשבוע הבא אחרי שבת 18:00 דורשים אישור מנהל.'}
             </p>
           </div>
@@ -385,6 +379,25 @@ const AvailabilityModule: React.FC = () => {
              const dateStr = formatDateKey(date);
              const data = localAvailability[dateStr] || {};
              const availabilityRequest = availabilityRequestByDate.get(dateStr);
+             const existingAvailability = availability.find(
+               (entry) => entry.userId === currentUser?.id && entry.date === dateStr
+             );
+             const currentAvailability: Availability = {
+               id: String(data.id || `${currentUser?.id || ''}-${dateStr}`),
+               userId: String(data.userId || currentUser?.id || ''),
+               userName: String(data.userName || currentUser?.name || ''),
+               date: dateStr,
+               isAvailable: Boolean(data.isAvailable),
+               isAllDay: Boolean(data.isAllDay),
+               startTime: data.startTime,
+               endTime: data.endTime,
+               notes: data.notes,
+             };
+             const currentChangeNeedsApproval = Boolean(
+               existingAvailability &&
+               !isSameAvailability(existingAvailability, currentAvailability) &&
+               requiresAvailabilityChangeApproval(existingAvailability, currentAvailability)
+             );
              return (
                <div key={dateStr} className={`bg-white border-4 p-6 md:p-8 rounded-[3rem] transition-all shadow-xl group ${data.isAvailable ? 'border-brand' : 'border-slate-50 bg-slate-50/50'}`}>
                   <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-6 md:gap-10">
@@ -397,8 +410,8 @@ const AvailabilityModule: React.FC = () => {
                            <div className="text-base xs:text-lg md:text-xl font-black text-brand-dark uppercase mt-2 tracking-widest tabular-nums">{date.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}</div>
                            <div className="mt-3 flex flex-wrap justify-end gap-2">
                              {getAvailabilityStatusBadge(dateStr)}
-                             {requiresShiftChangeApproval(dateStr) && availability.some((entry) => entry.userId === currentUser?.id && entry.date === dateStr) && (
-                               <span className="text-[10px] font-black uppercase px-3 py-1 rounded-full bg-slate-50 text-slate-500 border border-slate-100">
+                             {currentChangeNeedsApproval && (
+                               <span className="text-[10px] font-black uppercase px-3 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-100">
                                  שינוי דורש אישור
                                </span>
                              )}

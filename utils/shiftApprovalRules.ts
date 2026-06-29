@@ -44,3 +44,52 @@ export function requiresShiftChangeApproval(shiftDateStr: string, now = new Date
   const { start, end } = getFollowingWeekRange(cutoff);
   return shiftDate >= startOfDay(start) && shiftDate <= endOfDay(end);
 }
+
+type ApprovalComparableAvailability = {
+  date: string;
+  isAvailable: boolean;
+  isAllDay: boolean;
+  startTime?: string;
+  endTime?: string;
+};
+
+function parseTimeToMinutes(value?: string): number | null {
+  if (!value) return null;
+  const [hours, minutes] = value.split(':').map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
+    return null;
+  }
+  return hours * 60 + minutes;
+}
+
+function getAvailabilityRange(entry: ApprovalComparableAvailability): { start: number; end: number } | null {
+  if (!entry.isAvailable) return null;
+  if (entry.isAllDay) return { start: 0, end: 24 * 60 };
+
+  const start = parseTimeToMinutes(entry.startTime);
+  const end = parseTimeToMinutes(entry.endTime);
+  if (start == null || end == null || start >= end) return null;
+  return { start, end };
+}
+
+export function isAvailabilityExpansion(
+  before: ApprovalComparableAvailability,
+  after: ApprovalComparableAvailability
+): boolean {
+  const beforeRange = getAvailabilityRange(before);
+  const afterRange = getAvailabilityRange(after);
+
+  if (!afterRange) return false;
+  if (!beforeRange) return true;
+
+  return afterRange.start <= beforeRange.start && afterRange.end >= beforeRange.end;
+}
+
+export function requiresAvailabilityChangeApproval(
+  before: ApprovalComparableAvailability,
+  after: ApprovalComparableAvailability,
+  now = new Date()
+): boolean {
+  if (!requiresShiftChangeApproval(before.date, now)) return false;
+  return !isAvailabilityExpansion(before, after);
+}
