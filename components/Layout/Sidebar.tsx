@@ -6,13 +6,13 @@ import { isModuleHidden } from '../../utils/hiddenModules';
 import { 
   Users, Calendar, Clock, ClipboardList, 
   LifeBuoy, LogOut, CheckSquare, LayoutDashboard, 
-  BookOpen, FileText, X, Waves, RefreshCcw, Anchor, Banknote, Users2, Info, Bell, BellOff
+  BookOpen, FileText, X, Waves, RefreshCcw, Anchor, Banknote, Users2, Info, Bell, BellOff, ShieldCheck
 } from 'lucide-react';
 
 interface SidebarProps {
   isOpen: boolean;
   closeMobile: () => void;
-  isManager?: boolean;
+  canTogglePush?: boolean;
   pushSubscribed?: boolean;
   pushLoading?: boolean;
   pushDisabled?: boolean;
@@ -24,7 +24,7 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
   closeMobile,
-  isManager = false,
+  canTogglePush = false,
   pushSubscribed = false,
   pushLoading = false,
   pushDisabled = false,
@@ -42,6 +42,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     { id: 'daily_work', label: 'יום עבודה', icon: Clock, allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Warehouse'] },
     { id: 'my_hours', label: 'שעות העבודה שלי', icon: Clock, allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Warehouse', 'Shop Computer'] },
     { id: 'calendar', label: 'יומן ושיבוץ', icon: Calendar, allowed: ['Manager'] },
+    { id: 'approvals', label: 'אישורי משמרות', icon: ShieldCheck, allowed: ['Manager'] },
     { id: 'lessons', label: 'ניהול שיעורים', icon: BookOpen, allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Shop Computer'] },
     { id: 'rentals', label: 'השכרות ציוד', icon: LifeBuoy, allowed: ['Manager', 'Shop Computer'] },
     { id: 'events', label: 'חילוצים במזרחית', icon: Anchor, allowed: ['Site Editor', 'Manager', 'Shift Manager', 'Instructor', 'Shop Computer'] },
@@ -87,7 +88,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             <button onClick={closeMobile} className="nav:hidden p-2 text-slate-400"><X size={24}/></button>
           </div>
 
-          {isManager && onTogglePush && (
+          {canTogglePush && onTogglePush && (
             <button
               onClick={onTogglePush}
               disabled={pushDisabled}
@@ -97,7 +98,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               } ${pushLoading ? 'opacity-50 cursor-wait' : ''}`}
             >
               {pushSubscribed ? <Bell size={15} /> : <BellOff size={15} />}
-              <span>התראות מנהלים</span>
+              <span>התראות</span>
             </button>
           )}
         </div>

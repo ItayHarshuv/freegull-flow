@@ -478,8 +478,8 @@ app.post('/push/:clubId/subscriptions', requireAuth, async (c) => {
 
   const auth = c.get('auth') as AuthContext;
   const user = await readUserById(clubId, auth.userId);
-  if (!user || !isManagerRole(user.role)) {
-    return c.json({ error: 'Forbidden: managers only' }, 403);
+  if (!user) {
+    return c.json({ error: 'Unauthorized' }, 401);
   }
 
   const parsed = pushSubscriptionBodySchema.parse(await c.req.json());
@@ -503,8 +503,8 @@ app.get('/push/:clubId/subscriptions/status', requireAuth, async (c) => {
 
   const auth = c.get('auth') as AuthContext;
   const user = await readUserById(clubId, auth.userId);
-  if (!user || !isManagerRole(user.role)) {
-    return c.json({ error: 'Forbidden: managers only' }, 403);
+  if (!user) {
+    return c.json({ error: 'Unauthorized' }, 401);
   }
 
   const { endpoint } = pushSubscriptionStatusQuerySchema.parse(c.req.query());
@@ -524,12 +524,16 @@ app.delete('/push/:clubId/subscriptions', requireAuth, async (c) => {
 
   const auth = c.get('auth') as AuthContext;
   const user = await readUserById(clubId, auth.userId);
-  if (!user || !isManagerRole(user.role)) {
-    return c.json({ error: 'Forbidden: managers only' }, 403);
+  if (!user) {
+    return c.json({ error: 'Unauthorized' }, 401);
   }
 
   const parsed = pushUnsubscribeBodySchema.parse(await c.req.json());
-  await deletePushSubscriptionByEndpoint({ clubId, endpoint: parsed.endpoint });
+  await deletePushSubscriptionByEndpoint({
+    clubId,
+    userId: auth.userId,
+    endpoint: parsed.endpoint,
+  });
   return c.body(null, 204);
 });
 

@@ -73,6 +73,72 @@ export interface ConfirmedShift {
   endTime: string;
 }
 
+export type ChangeRequestSnapshot = ConfirmedShift | AvailabilityEntry;
+
+export type ShiftChangeRequestType =
+  | "remove"
+  | "time_change"
+  | "availability_change";
+export type ShiftChangeRequestStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "cancelled";
+
+export interface ShiftChangeRequest {
+  id: string;
+  clubId: string;
+  shiftId: string;
+  workerId: string;
+  requestedBy: string;
+  requestType: ShiftChangeRequestType;
+  originalShift: ChangeRequestSnapshot;
+  proposedShift: ChangeRequestSnapshot | null;
+  status: ShiftChangeRequestStatus;
+  reviewNote?: string | null;
+  reviewedBy?: string | null;
+  createdAt: string;
+  reviewedAt?: string | null;
+}
+
+export interface UserNotification {
+  id: string;
+  clubId: string;
+  userId: string;
+  title: string;
+  body: string;
+  url?: string | null;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface ShiftChangeRequestRow {
+  id: string;
+  club_id: string;
+  shift_id: string;
+  worker_id: string;
+  requested_by: string;
+  request_type: ShiftChangeRequestType;
+  original_shift: ChangeRequestSnapshot;
+  proposed_shift: ChangeRequestSnapshot | null;
+  status: ShiftChangeRequestStatus;
+  review_note: string | null;
+  reviewed_by: string | null;
+  created_at: Date;
+  reviewed_at: Date | null;
+}
+
+export interface UserNotificationRow {
+  id: string;
+  club_id: string;
+  user_id: string;
+  title: string;
+  body: string;
+  url: string | null;
+  is_read: boolean;
+  created_at: Date;
+}
+
 export interface Lesson {
   id: string;
   clientName: string;

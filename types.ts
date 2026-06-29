@@ -194,6 +194,41 @@ export interface ConfirmedShift {
   endTime: string;
 }
 
+export type ChangeRequestSnapshot = ConfirmedShift | Availability;
+
+export type ShiftChangeRequestType =
+  | 'remove'
+  | 'time_change'
+  | 'availability_change';
+export type ShiftChangeRequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+
+export interface ShiftChangeRequest {
+  id: string;
+  clubId: string;
+  shiftId: string;
+  workerId: string;
+  requestedBy: string;
+  requestType: ShiftChangeRequestType;
+  originalShift: ChangeRequestSnapshot;
+  proposedShift: ChangeRequestSnapshot | null;
+  status: ShiftChangeRequestStatus;
+  reviewNote?: string | null;
+  reviewedBy?: string | null;
+  createdAt: string;
+  reviewedAt?: string | null;
+}
+
+export interface UserNotification {
+  id: string;
+  clubId: string;
+  userId: string;
+  title: string;
+  body: string;
+  url?: string | null;
+  isRead: boolean;
+  createdAt: string;
+}
+
 export interface WhatsAppTemplate {
   id: string;
   title: string;

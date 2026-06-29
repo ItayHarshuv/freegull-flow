@@ -27,6 +27,22 @@ import {
 import { getVapidPublicKey, isPushEnabled, sendWebPush } from "./pushService.js";
 import { computeAvailabilityNotification } from "./availabilityNotifications.js";
 import {
+  approveShiftChangeRequest,
+  rejectShiftChangeRequest,
+  sanitizeAvailabilityWrite,
+  sanitizeConfirmedShiftsWrite,
+  submitAvailabilityChangeRequest,
+  submitShiftChangeRequest,
+} from "./shiftApprovalService.js";
+import {
+  listShiftChangeRequestsByWorker,
+  listShiftChangeRequestsForManager,
+  listPendingShiftChangeRequests,
+  listUserNotifications,
+  markNotificationRead,
+} from "./shiftApprovalRepository.js";
+import { isStrictManagerRole } from "./shiftApprovalRules.js";
+import {
   fullResyncAvailabilityToGoogle,
   syncAvailabilityDelta,
 } from "./googleAvailabilitySync.js";
@@ -35,6 +51,7 @@ import type { AuthContext } from "./express.js";
 import type {
   AuthSessionRow,
   ClubState,
+  ConfirmedShift,
   PushSubscriptionRow,
   SeaEvent,
   Shift,
@@ -167,6 +184,33 @@ const pushSubscriptionBodySchema = z.object({
 const pushUnsubscribeBodySchema = z.object({
   endpoint: z.string().min(1),
 });
+const shiftChangeRequestBodySchema = z.object({
+  shiftId: z.string().min(1),
+  requestType: z.enum(["remove", "time_change"]),
+  proposedStartTime: z.string().optional(),
+  proposedEndTime: z.string().optional(),
+});
+const availabilityEntrySchema = z.object({
+  id: z.string().min(1),
+  userId: z.string().min(1),
+  userName: z.string().min(1),
+  date: z.string().min(1),
+  isAvailable: z.boolean(),
+  isAllDay: z.boolean(),
+  startTime: z.string().optional().nullable(),
+  endTime: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+});
+const availabilityChangeRequestBodySchema = z.object({
+  availability: availabilityEntrySchema,
+});
+const shiftChangeReviewBodySchema = z.object({
+  reviewNote: z.string().optional(),
+});
+const shiftChangeListQuerySchema = z.object({
+  status: z.enum(["pending", "approved", "rejected", "cancelled"]).optional(),
+});
+const requestIdParamSchema = z.object({ requestId: z.string().min(1) });
 const pushSubscriptionStatusQuerySchema = z.object({
   endpoint: z.string().min(1),
 });
@@ -530,8 +574,8 @@ app.post(
       }
 
       const user = await readUserById(clubId, auth.userId);
-      if (!user || !isManagerRole(user.role)) {
-        return res.status(403).json({ error: "Forbidden: managers only" });
+      if (!user) {
+        return res.status(401).json({ error: "Unauthorized" });
       }
 
       const parsed = pushSubscriptionBodySchema.parse(req.body || {});
@@ -564,8 +608,8 @@ app.get(
       }
 
       const user = await readUserById(clubId, auth.userId);
-      if (!user || !isManagerRole(user.role)) {
-        return res.status(403).json({ error: "Forbidden: managers only" });
+      if (!user) {
+        return res.status(401).json({ error: "Unauthorized" });
       }
 
       const { endpoint } = pushSubscriptionStatusQuerySchema.parse(
@@ -596,13 +640,14 @@ app.delete(
       }
 
       const user = await readUserById(clubId, auth.userId);
-      if (!user || !isManagerRole(user.role)) {
-        return res.status(403).json({ error: "Forbidden: managers only" });
+      if (!user) {
+        return res.status(401).json({ error: "Unauthorized" });
       }
 
       const parsed = pushUnsubscribeBodySchema.parse(req.body || {});
       await deletePushSubscriptionByEndpoint({
         clubId,
+        userId: auth.userId,
         endpoint: parsed.endpoint,
       });
       return res.status(204).send();
@@ -642,12 +687,46 @@ app.put("/state/:clubId", requireAuth, async (req: Request, res: Response) => {
   try {
     const { clubId } = clubIdSchema.parse(req.params);
     if (!enforceClubAccess(req, res, clubId)) return;
+    const auth = req.auth;
+    if (!auth) return res.status(401).json({ error: "Unauthorized" });
+    const user = await readUserById(clubId, auth.userId);
+    if (!user) return res.status(401).json({ error: "Unauthorized" });
+
     console.log("[STATE_PUT_REQUEST_BODY]", { clubId, body: req.body });
     const parsed = stateSchema.parse(req.body);
     const beforeState = await readState(clubId);
+    const incomingState = parsed.state as Partial<ClubState>;
+    const beforeConfirmed: ConfirmedShift[] = Array.isArray(beforeState?.confirmedShifts)
+      ? beforeState.confirmedShifts
+      : [];
+    const afterConfirmed: ConfirmedShift[] = Array.isArray(incomingState.confirmedShifts)
+      ? incomingState.confirmedShifts
+      : beforeConfirmed;
+    const beforeAvailability = Array.isArray(beforeState?.availability)
+      ? beforeState.availability
+      : [];
+    const afterAvailability = Array.isArray(incomingState.availability)
+      ? incomingState.availability
+      : beforeAvailability;
+    const sanitizedConfirmed = sanitizeConfirmedShiftsWrite({
+      before: beforeConfirmed,
+      after: afterConfirmed,
+      userId: auth.userId,
+      userRole: user.role,
+    });
+    const sanitizedAvailability = sanitizeAvailabilityWrite({
+      before: beforeAvailability,
+      after: afterAvailability,
+      userId: auth.userId,
+      userRole: user.role,
+    });
     await writeState(
       clubId,
-      parsed.state as Partial<ClubState>,
+      {
+        ...incomingState,
+        confirmedShifts: sanitizedConfirmed,
+        availability: sanitizedAvailability,
+      },
       parsed.expectedVersion
     );
     const { state, version } = await readStateWithVersion(clubId);
@@ -968,6 +1047,255 @@ app.post(
       res.json(updatedEvents.find((e) => e.id === id) || null);
     } catch (error) {
       sendRouteError(res, error);
+    }
+  }
+);
+
+app.get(
+  "/shift-change-requests/:clubId/mine",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { clubId } = clubIdSchema.parse(req.params);
+      if (!enforceClubAccess(req, res, clubId)) return;
+      const auth = req.auth;
+      if (!auth) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const requests = await listShiftChangeRequestsByWorker(
+        clubId,
+        auth.userId
+      );
+      return res.json({ requests });
+    } catch (error) {
+      return sendRouteError(res, error);
+    }
+  }
+);
+
+app.get(
+  "/shift-change-requests/:clubId/pending",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { clubId } = clubIdSchema.parse(req.params);
+      if (!enforceClubAccess(req, res, clubId)) return;
+      const auth = req.auth;
+      if (!auth) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const user = await readUserById(clubId, auth.userId);
+      if (!user || !isStrictManagerRole(user.role)) {
+        return res.status(403).json({ error: "Forbidden: managers only" });
+      }
+      const requests = await listPendingShiftChangeRequests(clubId);
+      return res.json({ requests });
+    } catch (error) {
+      return sendRouteError(res, error);
+    }
+  }
+);
+
+app.get(
+  "/shift-change-requests/:clubId",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { clubId } = clubIdSchema.parse(req.params);
+      if (!enforceClubAccess(req, res, clubId)) return;
+      const auth = req.auth;
+      if (!auth) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const user = await readUserById(clubId, auth.userId);
+      if (!user || !isStrictManagerRole(user.role)) {
+        return res.status(403).json({ error: "Forbidden: managers only" });
+      }
+      const { status } = shiftChangeListQuerySchema.parse(req.query || {});
+      const requests = await listShiftChangeRequestsForManager(clubId, status);
+      return res.json({ requests });
+    } catch (error) {
+      return sendRouteError(res, error);
+    }
+  }
+);
+
+app.post(
+  "/availability-change-requests/:clubId",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { clubId } = clubIdSchema.parse(req.params);
+      if (!enforceClubAccess(req, res, clubId)) return;
+      const auth = req.auth;
+      if (!auth) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const user = await readUserById(clubId, auth.userId);
+      if (!user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const body = availabilityChangeRequestBodySchema.parse(req.body || {});
+      const result = await submitAvailabilityChangeRequest({
+        clubId,
+        userId: auth.userId,
+        userRole: user.role,
+        proposedAvailability: body.availability,
+      });
+      const { state, version } = await readStateWithVersion(clubId);
+      return res.status(result.applied ? 200 : 202).json({
+        ...result,
+        state,
+        serverVersion: version,
+      });
+    } catch (error) {
+      return sendRouteError(res, error);
+    }
+  }
+);
+
+app.post(
+  "/shift-change-requests/:clubId",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { clubId } = clubIdSchema.parse(req.params);
+      if (!enforceClubAccess(req, res, clubId)) return;
+      const auth = req.auth;
+      if (!auth) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const user = await readUserById(clubId, auth.userId);
+      if (!user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const body = shiftChangeRequestBodySchema.parse(req.body || {});
+      const result = await submitShiftChangeRequest({
+        clubId,
+        userId: auth.userId,
+        userRole: user.role,
+        shiftId: body.shiftId,
+        requestType: body.requestType,
+        proposedStartTime: body.proposedStartTime,
+        proposedEndTime: body.proposedEndTime,
+      });
+      const { state, version } = await readStateWithVersion(clubId);
+      return res.status(result.applied ? 200 : 202).json({
+        ...result,
+        state,
+        serverVersion: version,
+      });
+    } catch (error) {
+      return sendRouteError(res, error);
+    }
+  }
+);
+
+app.post(
+  "/shift-change-requests/:clubId/:requestId/approve",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { clubId } = clubIdSchema.parse(req.params);
+      const { requestId } = requestIdParamSchema.parse(req.params);
+      if (!enforceClubAccess(req, res, clubId)) return;
+      const auth = req.auth;
+      if (!auth) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const user = await readUserById(clubId, auth.userId);
+      if (!user || !isStrictManagerRole(user.role)) {
+        return res.status(403).json({ error: "Forbidden: managers only" });
+      }
+      const body = shiftChangeReviewBodySchema.parse(req.body || {});
+      const request = await approveShiftChangeRequest({
+        clubId,
+        requestId,
+        reviewerId: auth.userId,
+        reviewNote: body.reviewNote,
+      });
+      const { state, version } = await readStateWithVersion(clubId);
+      return res.json({ request, state, serverVersion: version });
+    } catch (error) {
+      return sendRouteError(res, error);
+    }
+  }
+);
+
+app.post(
+  "/shift-change-requests/:clubId/:requestId/reject",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { clubId } = clubIdSchema.parse(req.params);
+      const { requestId } = requestIdParamSchema.parse(req.params);
+      if (!enforceClubAccess(req, res, clubId)) return;
+      const auth = req.auth;
+      if (!auth) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const user = await readUserById(clubId, auth.userId);
+      if (!user || !isStrictManagerRole(user.role)) {
+        return res.status(403).json({ error: "Forbidden: managers only" });
+      }
+      const body = shiftChangeReviewBodySchema.parse(req.body);
+      const request = await rejectShiftChangeRequest({
+        clubId,
+        requestId,
+        reviewerId: auth.userId,
+        reviewNote: body.reviewNote,
+      });
+      return res.json({ request });
+    } catch (error) {
+      return sendRouteError(res, error);
+    }
+  }
+);
+
+app.get(
+  "/notifications/:clubId/mine",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { clubId } = clubIdSchema.parse(req.params);
+      if (!enforceClubAccess(req, res, clubId)) return;
+      const auth = req.auth;
+      if (!auth) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const notifications = await listUserNotifications(clubId, auth.userId);
+      return res.json({ notifications });
+    } catch (error) {
+      return sendRouteError(res, error);
+    }
+  }
+);
+
+app.post(
+  "/notifications/:clubId/:notificationId/read",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { clubId } = clubIdSchema.parse(req.params);
+      const { notificationId } = z
+        .object({ notificationId: z.string().min(1) })
+        .parse(req.params);
+      if (!enforceClubAccess(req, res, clubId)) return;
+      const auth = req.auth;
+      if (!auth) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const notification = await markNotificationRead(
+        clubId,
+        auth.userId,
+        notificationId
+      );
+      if (!notification) {
+        return res.status(404).json({ error: "Notification not found" });
+      }
+      return res.json({ notification });
+    } catch (error) {
+      return sendRouteError(res, error);
     }
   }
 );

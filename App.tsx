@@ -19,6 +19,7 @@ import EventsModule from './components/Modules/EventsModule';
 import PayrollModule from './components/Modules/PayrollModule';
 import ClubInfoModule from './components/Modules/ClubInfoModule';
 import MyHoursModule from './components/Modules/MyHoursModule';
+import ApprovalsModule from './components/Modules/ApprovalsModule';
 import { Menu, Waves, Cloud, CloudOff, RefreshCw, Bell, BellOff } from 'lucide-react';
 import { isModuleHidden } from './utils/hiddenModules';
 import { disableManagerPush, enableManagerPush, getPushStatus, isWebPushSupported } from './pushNotifications';
@@ -27,15 +28,17 @@ const DashboardContent: React.FC = () => {
   const { currentUser, authHydrated, syncStatus, lastSyncTime, clubId, syncNow } = useAppStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const canAccessCalendar = currentUser?.role === 'Manager';
+  const canAccessApprovals = currentUser?.role === 'Manager';
   const canAccessRentals = ['Manager', 'Shop Computer'].includes(currentUser?.role || '');
   const isManager = ['Manager', 'Shift Manager', 'manager', 'shift-manager'].includes(currentUser?.role || '');
+  const canUsePush = Boolean(currentUser);
   const [pushSupported, setPushSupported] = useState(false);
   const [pushPermission, setPushPermission] = useState<NotificationPermission>('default');
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
 
   useEffect(() => {
-    if (!isManager) return;
+    if (!canUsePush) return;
     const run = async () => {
       const status = await getPushStatus({ clubId });
       setPushSupported(status.supported);
@@ -46,10 +49,10 @@ const DashboardContent: React.FC = () => {
       setPushSupported(isWebPushSupported());
       setPushSubscribed(false);
     });
-  }, [clubId, isManager]);
+  }, [canUsePush, clubId]);
 
   const togglePush = async () => {
-    if (!isManager) return;
+    if (!canUsePush) return;
     if (!isWebPushSupported()) {
       setPushSupported(false);
       return;
@@ -75,8 +78,8 @@ const DashboardContent: React.FC = () => {
     : pushPermission === 'denied'
       ? 'ההתראות חסומות בדפדפן'
       : pushSubscribed
-        ? 'כבה התראות מנהלים'
-        : 'הפעל התראות מנהלים';
+        ? 'כבה התראות'
+        : 'הפעל התראות';
 
   if (!authHydrated) {
     return <div className="min-h-screen bg-[#F8FAFC]" />;
@@ -102,7 +105,7 @@ const DashboardContent: React.FC = () => {
          </div>
          
          <div className="flex items-center gap-2 lg:gap-4 flex-row-reverse shrink-0">
-            {isManager && (
+            {canUsePush && (
               <button
                 onClick={togglePush}
                 disabled={pushLoading || (pushPermission === 'denied' && !pushSubscribed)}
@@ -143,7 +146,7 @@ const DashboardContent: React.FC = () => {
       <Sidebar
         isOpen={isMobileMenuOpen}
         closeMobile={() => setIsMobileMenuOpen(false)}
-        isManager={isManager}
+        canTogglePush={canUsePush}
         pushSubscribed={pushSubscribed}
         pushLoading={pushLoading}
         pushDisabled={pushLoading || (pushPermission === 'denied' && !pushSubscribed)}
@@ -158,6 +161,7 @@ const DashboardContent: React.FC = () => {
               <Route path="/" element={<DashboardModule userName={currentUser.name} />} />
               <Route path="/dashboard" element={<Navigate to="/" replace />} />
               <Route path="/calendar" element={canAccessCalendar ? <CalendarModule /> : <Navigate to="/" replace />} />
+              <Route path="/approvals" element={canAccessApprovals ? <ApprovalsModule /> : <Navigate to="/" replace />} />
               <Route path="/lessons" element={isModuleHidden('lessons') ? <Navigate to="/" replace /> : <SchedulingModule />} />
               <Route path="/daily_work" element={<DailyWorkModule />} />
               <Route path="/availability" element={<AvailabilityModule />} />

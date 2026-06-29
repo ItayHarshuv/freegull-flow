@@ -96,6 +96,7 @@ interface AppContextType extends AppState {
   addKnowledgeFile: (f: KnowledgeFile) => void;
   deleteKnowledgeFile: (id: string) => void;
   syncNow: () => void;
+  applyRemoteState: (cloudData: Record<string, unknown>, serverVersion?: number) => void;
   startTour: () => void;
   endTour: () => void;
 }
@@ -496,6 +497,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const addKnowledgeFile = (f: KnowledgeFile) => update(p => ({ ...p, knowledgeFiles: [f, ...p.knowledgeFiles] }));
   const deleteKnowledgeFile = (id: string) => update(p => ({ ...p, knowledgeFiles: p.knowledgeFiles.filter(x => x.id !== id) }));
 
+  const applyRemoteState = useCallback((cloudData: Record<string, unknown>, serverVersion?: number) => {
+    if (typeof serverVersion === 'number') {
+      serverVersionRef.current = serverVersion;
+    }
+    isApplyingRemoteState.current = true;
+    setState(prev => ({
+      ...prev,
+      ...cloudData,
+      clubId: (cloudData.clubId as string) || prev.clubId,
+      confirmedShifts: Array.isArray(cloudData.confirmedShifts)
+        ? cloudData.confirmedShifts as ConfirmedShift[]
+        : prev.confirmedShifts,
+      currentUser: prev.currentUser,
+      syncStatus: 'synced',
+      lastSyncTime: new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    }));
+  }, []);
+
   const value: AppContextType = {
     ...state,
     login, logout, enterEditorMode, switchUser,
@@ -515,6 +534,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
       void pull({ force: true });
     },
+    applyRemoteState,
     startTour: () => setState(p => ({ ...p, isTourActive: true })),
     endTour: () => setState(p => ({ ...p, isTourActive: false }))
   };

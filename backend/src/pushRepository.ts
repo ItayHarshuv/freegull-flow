@@ -40,17 +40,19 @@ export async function upsertPushSubscription({
 
 export async function deletePushSubscriptionByEndpoint({
   clubId,
+  userId,
   endpoint,
 }: {
   clubId: string;
+  userId: string;
   endpoint: string;
 }): Promise<void> {
   await pool.query(
     `
       DELETE FROM push_subscriptions
-      WHERE club_id = $1 AND endpoint = $2
+      WHERE club_id = $1 AND user_id = $2 AND endpoint = $3
     `,
-    [clubId, endpoint]
+    [clubId, userId, endpoint]
   );
 }
 
@@ -96,6 +98,32 @@ export async function listPushSubscriptionsByClub({
       WHERE club_id = $1
     `,
     [clubId]
+  );
+  return res.rows;
+}
+
+export async function listPushSubscriptionsByUser({
+  clubId,
+  userId,
+}: {
+  clubId: string;
+  userId: string;
+}): Promise<PushSubscriptionRow[]> {
+  const res = await pool.query<PushSubscriptionRow>(
+    `
+      SELECT
+        id,
+        club_id,
+        user_id,
+        endpoint,
+        p256dh,
+        auth,
+        user_agent
+      FROM push_subscriptions
+      WHERE club_id = $1
+        AND user_id = $2
+    `,
+    [clubId, userId]
   );
   return res.rows;
 }

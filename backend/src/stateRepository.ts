@@ -11,8 +11,10 @@ import type {
   Rental,
   SeaEvent,
   Shift,
+  ShiftChangeRequestRow,
   ShiftBonus,
   Task,
+  UserNotificationRow,
   User,
   WhatsappTemplate,
 } from "./types.js";
@@ -196,6 +198,105 @@ async function readPushSubscriptions(
     [clubId]
   );
   return res.rows;
+}
+
+async function readShiftChangeRequests(
+  client: PoolClient,
+  clubId: string
+): Promise<ShiftChangeRequestRow[]> {
+  const res = await client.query<ShiftChangeRequestRow>(
+    `
+      SELECT * FROM shift_change_requests
+      WHERE club_id = $1
+      ORDER BY created_at ASC
+    `,
+    [clubId]
+  );
+  return res.rows;
+}
+
+async function restoreShiftChangeRequests(
+  client: PoolClient,
+  requests: ShiftChangeRequestRow[],
+  validUserIds: Set<string>
+): Promise<void> {
+  for (const request of requests) {
+    if (
+      !validUserIds.has(request.worker_id) ||
+      !validUserIds.has(request.requested_by) ||
+      (request.reviewed_by && !validUserIds.has(request.reviewed_by))
+    ) {
+      continue;
+    }
+    await client.query(
+      `
+        INSERT INTO shift_change_requests (
+          id, club_id, shift_id, worker_id, requested_by, request_type,
+          original_shift, proposed_shift, status, review_note, reviewed_by,
+          created_at, reviewed_at
+        )
+        VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9,$10,$11,$12,$13)
+      `,
+      [
+        request.id,
+        request.club_id,
+        request.shift_id,
+        request.worker_id,
+        request.requested_by,
+        request.request_type,
+        JSON.stringify(request.original_shift),
+        request.proposed_shift ? JSON.stringify(request.proposed_shift) : null,
+        request.status,
+        request.review_note,
+        request.reviewed_by,
+        request.created_at,
+        request.reviewed_at,
+      ]
+    );
+  }
+}
+
+async function readUserNotifications(
+  client: PoolClient,
+  clubId: string
+): Promise<UserNotificationRow[]> {
+  const res = await client.query<UserNotificationRow>(
+    `
+      SELECT * FROM user_notifications
+      WHERE club_id = $1
+      ORDER BY created_at ASC
+    `,
+    [clubId]
+  );
+  return res.rows;
+}
+
+async function restoreUserNotifications(
+  client: PoolClient,
+  notifications: UserNotificationRow[],
+  validUserIds: Set<string>
+): Promise<void> {
+  for (const notification of notifications) {
+    if (!validUserIds.has(notification.user_id)) continue;
+    await client.query(
+      `
+        INSERT INTO user_notifications (
+          id, club_id, user_id, title, body, url, is_read, created_at
+        )
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      `,
+      [
+        notification.id,
+        notification.club_id,
+        notification.user_id,
+        notification.title,
+        notification.body,
+        notification.url,
+        notification.is_read,
+        notification.created_at,
+      ]
+    );
+  }
 }
 
 async function restorePushSubscriptions(
@@ -864,7 +965,12 @@ export async function writeState(
       );
     }
 
-    const existingPushSubscriptions = await readPushSubscriptions(client, clubId);
+    const [existingPushSubscriptions, existingShiftChangeRequests, existingUserNotifications] =
+      await Promise.all([
+        readPushSubscriptions(client, clubId),
+        readShiftChangeRequests(client, clubId),
+        readUserNotifications(client, clubId),
+      ]);
 
     await clearClubData(client, clubId);
 
@@ -909,6 +1015,8 @@ export async function writeState(
     }
 
     await restorePushSubscriptions(client, existingPushSubscriptions, userIds);
+    await restoreShiftChangeRequests(client, existingShiftChangeRequests, userIds);
+    await restoreUserNotifications(client, existingUserNotifications, userIds);
 
     const shifts: Shift[] = Array.isArray(state.shifts) ? state.shifts : [];
     for (const shift of shifts) {

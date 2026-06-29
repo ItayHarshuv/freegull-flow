@@ -28,6 +28,7 @@ tmp/
 *.tsbuildinfo
 .vite/
 .eslintcache
+.pnpm-store/
 
 # Environment files (do not commit secrets)
 .env
