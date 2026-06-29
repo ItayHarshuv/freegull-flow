@@ -5,13 +5,29 @@ import { cors } from 'hono/cors';
 import { ZodError, z } from 'zod';
 import { computeAvailabilityNotification } from '../../../backend/src/availabilityNotifications.js';
 import {
+  approveShiftChangeRequest,
+  rejectShiftChangeRequest,
+  sanitizeAvailabilityWrite,
+  sanitizeConfirmedShiftsWrite,
+  submitAvailabilityChangeRequest,
+  submitShiftChangeRequest,
+} from '../../../backend/src/shiftApprovalService.js';
+import {
+  listPendingShiftChangeRequests,
+  listShiftChangeRequestsByWorker,
+  listShiftChangeRequestsForManager,
+  listUserNotifications,
+  markNotificationRead,
+} from '../../../backend/src/shiftApprovalRepository.js';
+import { isStrictManagerRole } from '../../../backend/src/shiftApprovalRules.js';
+import {
   deletePushSubscriptionByEndpoint,
   hasPushSubscription,
   listPushSubscriptionsByClub,
   upsertPushSubscription,
 } from '../../../backend/src/pushRepository.js';
 import { getVapidPublicKey, isPushEnabled, sendWebPush } from '../../../backend/src/pushService.js';
-import type { UserRow } from '../../../backend/src/types.js';
+import type { ClubState, ConfirmedShift, UserRow } from '../../../backend/src/types.js';
 
 const AUTH_COOKIE_NAME = 'freegull_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 14;
@@ -97,6 +113,32 @@ const pushUnsubscribeBodySchema = z.object({
 });
 const pushSubscriptionStatusQuerySchema = z.object({
   endpoint: z.string().min(1),
+});
+const shiftChangeRequestBodySchema = z.object({
+  shiftId: z.string().min(1),
+  requestType: z.enum(['remove', 'time_change']),
+  proposedStartTime: z.string().optional(),
+  proposedEndTime: z.string().optional(),
+});
+const availabilityEntrySchema = z.object({
+  id: z.string().min(1),
+  userId: z.string().min(1),
+  userName: z.string().min(1),
+  date: z.string().min(1),
+  isAvailable: z.boolean(),
+  isAllDay: z.boolean(),
+  startTime: z.string().optional().nullable(),
+  endTime: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+});
+const availabilityChangeRequestBodySchema = z.object({
+  availability: availabilityEntrySchema,
+});
+const shiftChangeReviewBodySchema = z.object({
+  reviewNote: z.string().optional(),
+});
+const shiftChangeListQuerySchema = z.object({
+  status: z.enum(['pending', 'approved', 'rejected', 'cancelled']).optional(),
 });
 const loginBodySchema = z.object({
   clubId: z.string().min(1),
@@ -562,6 +604,12 @@ app.put('/state/:clubId', requireAuth, async (c) => {
   const denied = enforceClubAccess(c, clubId);
   if (denied) return denied;
 
+  const auth = c.get('auth') as AuthContext;
+  const user = await readUserById(clubId, auth.userId);
+  if (!user) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
   const requestBody = await c.req.json();
   console.log('[STATE_PUT_REQUEST_BODY]', { clubId, body: requestBody });
   const parsed = stateSchema.parse(requestBody);
@@ -569,7 +617,41 @@ app.put('/state/:clubId', requireAuth, async (c) => {
 
   try {
     const beforeState = await readStateWithVersion(clubId);
-    await writeState(clubId, parsed.state, parsed.expectedVersion);
+    const incomingState = parsed.state as Partial<ClubState>;
+    const beforeConfirmed: ConfirmedShift[] = Array.isArray(beforeState?.state?.confirmedShifts)
+      ? beforeState.state.confirmedShifts
+      : [];
+    const afterConfirmed: ConfirmedShift[] = Array.isArray(incomingState.confirmedShifts)
+      ? incomingState.confirmedShifts
+      : beforeConfirmed;
+    const beforeAvailability = Array.isArray(beforeState?.state?.availability)
+      ? beforeState.state.availability
+      : [];
+    const afterAvailability = Array.isArray(incomingState.availability)
+      ? incomingState.availability
+      : beforeAvailability;
+    const sanitizedConfirmed = sanitizeConfirmedShiftsWrite({
+      before: beforeConfirmed,
+      after: afterConfirmed,
+      userId: auth.userId,
+      userRole: user.role,
+    });
+    const sanitizedAvailability = sanitizeAvailabilityWrite({
+      before: beforeAvailability,
+      after: afterAvailability,
+      userId: auth.userId,
+      userRole: user.role,
+    });
+
+    await writeState(
+      clubId,
+      {
+        ...incomingState,
+        confirmedShifts: sanitizedConfirmed,
+        availability: sanitizedAvailability,
+      },
+      parsed.expectedVersion
+    );
     const { state, version } = await readStateWithVersion(clubId);
 
     try {
@@ -681,6 +763,195 @@ app.post('/google-calendar/:clubId/resync-availability', requireAuth, async (c) 
   });
 
   return c.json({ ok: true, ...stats });
+});
+
+app.get('/shift-change-requests/:clubId/mine', requireAuth, async (c) => {
+  const { clubId } = clubIdSchema.parse(c.req.param());
+  const denied = enforceClubAccess(c, clubId);
+  if (denied) return denied;
+
+  const auth = c.get('auth') as AuthContext;
+  const requests = await listShiftChangeRequestsByWorker(clubId, auth.userId);
+  return c.json({ requests });
+});
+
+app.get('/shift-change-requests/:clubId/pending', requireAuth, async (c) => {
+  const { clubId } = clubIdSchema.parse(c.req.param());
+  const denied = enforceClubAccess(c, clubId);
+  if (denied) return denied;
+
+  const auth = c.get('auth') as AuthContext;
+  const user = await readUserById(clubId, auth.userId);
+  if (!user || !isStrictManagerRole(user.role)) {
+    return c.json({ error: 'Forbidden: managers only' }, 403);
+  }
+
+  const requests = await listPendingShiftChangeRequests(clubId);
+  return c.json({ requests });
+});
+
+app.get('/shift-change-requests/:clubId', requireAuth, async (c) => {
+  const { clubId } = clubIdSchema.parse(c.req.param());
+  const denied = enforceClubAccess(c, clubId);
+  if (denied) return denied;
+
+  const auth = c.get('auth') as AuthContext;
+  const user = await readUserById(clubId, auth.userId);
+  if (!user || !isStrictManagerRole(user.role)) {
+    return c.json({ error: 'Forbidden: managers only' }, 403);
+  }
+
+  const { status } = shiftChangeListQuerySchema.parse(c.req.query());
+  const requests = await listShiftChangeRequestsForManager(clubId, status);
+  return c.json({ requests });
+});
+
+app.post('/availability-change-requests/:clubId', requireAuth, async (c) => {
+  const { clubId } = clubIdSchema.parse(c.req.param());
+  const denied = enforceClubAccess(c, clubId);
+  if (denied) return denied;
+
+  const auth = c.get('auth') as AuthContext;
+  const user = await readUserById(clubId, auth.userId);
+  if (!user) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  const body = availabilityChangeRequestBodySchema.parse(await c.req.json());
+  const result = await submitAvailabilityChangeRequest({
+    clubId,
+    userId: auth.userId,
+    userRole: user.role,
+    proposedAvailability: body.availability,
+  });
+  const { readStateWithVersion } = await getLegacyStateRepositoryModule();
+  const { state, version } = await readStateWithVersion(clubId);
+
+  return c.json(
+    {
+      ...result,
+      state,
+      serverVersion: version,
+    },
+    result.applied ? 200 : 202
+  );
+});
+
+app.post('/shift-change-requests/:clubId', requireAuth, async (c) => {
+  const { clubId } = clubIdSchema.parse(c.req.param());
+  const denied = enforceClubAccess(c, clubId);
+  if (denied) return denied;
+
+  const auth = c.get('auth') as AuthContext;
+  const user = await readUserById(clubId, auth.userId);
+  if (!user) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  const body = shiftChangeRequestBodySchema.parse(await c.req.json());
+  const result = await submitShiftChangeRequest({
+    clubId,
+    userId: auth.userId,
+    userRole: user.role,
+    shiftId: body.shiftId,
+    requestType: body.requestType,
+    proposedStartTime: body.proposedStartTime,
+    proposedEndTime: body.proposedEndTime,
+  });
+  const { readStateWithVersion } = await getLegacyStateRepositoryModule();
+  const { state, version } = await readStateWithVersion(clubId);
+
+  return c.json(
+    {
+      ...result,
+      state,
+      serverVersion: version,
+    },
+    result.applied ? 200 : 202
+  );
+});
+
+app.post('/shift-change-requests/:clubId/:requestId/approve', requireAuth, async (c) => {
+  const params = z.object({
+    clubId: z.string().min(1),
+    requestId: z.string().min(1),
+  }).parse(c.req.param());
+  const denied = enforceClubAccess(c, params.clubId);
+  if (denied) return denied;
+
+  const auth = c.get('auth') as AuthContext;
+  const user = await readUserById(params.clubId, auth.userId);
+  if (!user || !isStrictManagerRole(user.role)) {
+    return c.json({ error: 'Forbidden: managers only' }, 403);
+  }
+
+  const body = shiftChangeReviewBodySchema.parse(await c.req.json());
+  const request = await approveShiftChangeRequest({
+    clubId: params.clubId,
+    requestId: params.requestId,
+    reviewerId: auth.userId,
+    reviewNote: body.reviewNote,
+  });
+  const { readStateWithVersion } = await getLegacyStateRepositoryModule();
+  const { state, version } = await readStateWithVersion(params.clubId);
+
+  return c.json({ request, state, serverVersion: version });
+});
+
+app.post('/shift-change-requests/:clubId/:requestId/reject', requireAuth, async (c) => {
+  const params = z.object({
+    clubId: z.string().min(1),
+    requestId: z.string().min(1),
+  }).parse(c.req.param());
+  const denied = enforceClubAccess(c, params.clubId);
+  if (denied) return denied;
+
+  const auth = c.get('auth') as AuthContext;
+  const user = await readUserById(params.clubId, auth.userId);
+  if (!user || !isStrictManagerRole(user.role)) {
+    return c.json({ error: 'Forbidden: managers only' }, 403);
+  }
+
+  const body = shiftChangeReviewBodySchema.parse(await c.req.json());
+  const request = await rejectShiftChangeRequest({
+    clubId: params.clubId,
+    requestId: params.requestId,
+    reviewerId: auth.userId,
+    reviewNote: body.reviewNote,
+  });
+
+  return c.json({ request });
+});
+
+app.get('/notifications/:clubId/mine', requireAuth, async (c) => {
+  const { clubId } = clubIdSchema.parse(c.req.param());
+  const denied = enforceClubAccess(c, clubId);
+  if (denied) return denied;
+
+  const auth = c.get('auth') as AuthContext;
+  const notifications = await listUserNotifications(clubId, auth.userId);
+  return c.json({ notifications });
+});
+
+app.post('/notifications/:clubId/:notificationId/read', requireAuth, async (c) => {
+  const params = z.object({
+    clubId: z.string().min(1),
+    notificationId: z.string().min(1),
+  }).parse(c.req.param());
+  const denied = enforceClubAccess(c, params.clubId);
+  if (denied) return denied;
+
+  const auth = c.get('auth') as AuthContext;
+  const notification = await markNotificationRead(
+    params.clubId,
+    auth.userId,
+    params.notificationId
+  );
+  if (!notification) {
+    return c.json({ error: 'Notification not found' }, 404);
+  }
+
+  return c.json({ notification });
 });
 
 app.get('/api/v1/clubs/:clubId/dashboard', (c) => {
