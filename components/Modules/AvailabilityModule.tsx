@@ -13,7 +13,7 @@ import {
   requiresAvailabilityChangeApproval,
   requiresShiftChangeApproval,
 } from '../../utils/shiftApprovalRules';
-import { Save, Calendar, Check, Clock, Sun, MessageSquare, Briefcase, Bell, X, Edit3, UserMinus } from 'lucide-react';
+import { Save, Calendar, Check, Clock, Sun, MessageSquare, Briefcase, Bell, X, Edit3, UserMinus, AlertTriangle } from 'lucide-react';
 
 const AvailabilityModule: React.FC = () => {
   const { currentUser, bulkSaveAvailability, availability, confirmedShifts, clubId, applyRemoteState } = useAppStore();
@@ -38,6 +38,13 @@ const AvailabilityModule: React.FC = () => {
     if (entry.isAllDay) return 'זמין כל היום';
     return `${entry.startTime} - ${entry.endTime}`;
   };
+
+  const renderPendingApprovalBadge = () => (
+    <span className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-amber-100 text-amber-800 border-2 border-amber-300 shadow-sm text-sm md:text-base font-black whitespace-nowrap">
+      <Clock size={16} className="shrink-0" />
+      ממתין לאישור
+    </span>
+  );
 
   const isSameAvailability = (left?: Availability, right?: Availability) => {
     if (!left || !right) return false;
@@ -293,7 +300,7 @@ const AvailabilityModule: React.FC = () => {
     const req = requestByShiftId.get(shiftId);
     if (!req) return null;
     if (req.status === 'pending') {
-      return <span className="text-[10px] font-black uppercase px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100">ממתין לאישור</span>;
+      return renderPendingApprovalBadge();
     }
     return null;
   };
@@ -302,7 +309,7 @@ const AvailabilityModule: React.FC = () => {
     const req = availabilityRequestByDate.get(dateStr);
     if (!req) return null;
     if (req.status === 'pending') {
-      return <span className="text-[10px] font-black uppercase px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100">ממתין לאישור</span>;
+      return renderPendingApprovalBadge();
     }
     return null;
   };
@@ -410,11 +417,12 @@ const AvailabilityModule: React.FC = () => {
                            <div className="text-base xs:text-lg md:text-xl font-black text-brand-dark uppercase mt-2 tracking-widest tabular-nums">{date.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}</div>
                            <div className="mt-3 flex flex-wrap justify-end gap-2">
                              {getAvailabilityStatusBadge(dateStr)}
-                             {currentChangeNeedsApproval && (
-                               <span className="text-[10px] font-black uppercase px-3 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-100">
-                                 שינוי דורש אישור
-                               </span>
-                             )}
+                            {currentChangeNeedsApproval && (
+                              <span className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-rose-100 text-rose-800 border-2 border-rose-300 shadow-sm text-sm md:text-base font-black whitespace-nowrap">
+                                <AlertTriangle size={16} className="shrink-0" />
+                                שינוי דורש אישור
+                              </span>
+                            )}
                            </div>
                         </div>
                      </div>
